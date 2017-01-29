@@ -1,0 +1,6 @@
+*.pyc
+dist
+build
+*.egg-info
+
+/robotpy_installer/win32/*.exe

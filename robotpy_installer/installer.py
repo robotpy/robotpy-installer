@@ -675,11 +675,6 @@ class RobotpyInstaller(object):
         Logic for installing RobotPy
     '''
     
-    cfg_filename = abspath(join(dirname(__file__), '.installer_config'))
-    
-    pip_cache = abspath(join(dirname(__file__), 'pip_cache'))
-    opkg_cache = abspath(join(dirname(__file__), 'opkg_cache'))
-    
     # opkg feed
     opkg_arch = 'cortexa9-vfpv3'
     
@@ -694,7 +689,12 @@ class RobotpyInstaller(object):
         'download-opkg'
     ]
 
-    def __init__(self):
+    def __init__(self, cache_root):
+        
+        self.cfg_filename = abspath(join(cache_root, '.installer_config'))
+        
+        self.pip_cache = abspath(join(cache_root, 'pip_cache'))
+        self.opkg_cache = abspath(join(cache_root, 'opkg_cache'))
         
         if not exists(self.pip_cache):
             os.makedirs(self.pip_cache)
@@ -994,8 +994,20 @@ def main(args=None):
     if args is None:
         args = sys.argv[1:]
 
+    # Because this is included with the RobotPy download package, there
+    # are two ways to use this:
+    #
+    # * If there are directories 'pip_cache' and 'opkg_cache' next to this file,
+    #   then use that 
+    # * Otherwise, use the current working directory
+    #
+    
+    cache_root = abspath(join(dirname(__file__)))
+    if not exists(join(cache_root, 'pip_cache')):
+        cache_root = os.getcwd()
+
     try:
-        installer = RobotpyInstaller()
+        installer = RobotpyInstaller(cache_root)
     except Error as e:
         print("ERROR: %s" % e)
         return 1

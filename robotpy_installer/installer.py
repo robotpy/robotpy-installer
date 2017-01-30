@@ -88,10 +88,13 @@ class OpkgRepo(object):
         feed = {
             "url": url,
             "db_fname": join(self.pkg_dbs, safe_url),
-            "pkgs": OrderedDict()
+            "pkgs": OrderedDict(),
+            "loaded": False
         }
         if exists(feed["db_fname"]):
             self.load_package_db(feed)
+            feed['loaded'] = True
+            
         self.feeds.append(feed)
         
     def update_packages(self):
@@ -141,10 +144,18 @@ class OpkgRepo(object):
             pkgs.append(pkg)
     
     def get_pkginfo(self, name):
+        loaded = False
         for feed in self.feeds:
+            loaded = loaded or feed['loaded']
             if name in feed["pkgs"]:
                 return feed["pkgs"][name][-1]
-        raise OpkgError("Package '%s' is not in the package list (have you downloaded it yet?)" % name)
+            
+        if loaded:
+            msg = 'Package %s is not in the package list (did you misspell it?)' % name
+        else:
+            msg = 'There are no package lists, did you download %s yet?' % name
+        
+        raise OpkgError(msg)
         
     def _get_pkg_fname(self, pkg):
         return join(self.opkg_cache, basename(pkg['Filename']))

@@ -37,6 +37,9 @@ from distutils.version import LooseVersion
 from functools import reduce as _reduce
 from urllib.request import urlretrieve
 
+import logging
+logger = logging.getLogger('robotpy.installer')
+
 
 is_windows = hasattr(sys, 'getwindowsversion')
 
@@ -410,7 +413,7 @@ def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=Fal
     
     if not no_resolve:
         try:
-            print("Looking up hostname", hostname, '...')
+            logger.info("Looking up hostname '%s'...", hostname)
             # addrs = [(family, socktype, proto, canonname, sockaddr)]
             addrs = socket.getaddrinfo(hostname, None)
         except socket.gaierror as e:
@@ -432,7 +435,7 @@ def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=Fal
                 hostname = ip
                 break 
     
-    print("Connecting to robot via SSH at", hostname)
+    logger.info("Connecting to robot via SSH at %s", hostname)
     
     return SshController(hostname, username, password,
                          allow_mitm)
@@ -705,7 +708,7 @@ class RobotpyInstaller(object):
 
     def _get_opkg(self):
         opkg = OpkgRepo(self.opkg_cache, self.opkg_arch)
-        opkg.add_feed('http://www.tortall.net/~robotpy/feeds/2017')
+        opkg.add_feed('https://www.tortall.net/~robotpy/feeds/2017')
         opkg.add_feed("http://download.ni.com/ni-linux-rt/feeds/2016/arm/ipk/cortexa9-vfpv3")
         return opkg
 
@@ -773,6 +776,7 @@ class RobotpyInstaller(object):
                             help="Don't install robotpy-wpilib-utilities")
         parser.add_argument('--pre', action='store_true', default=False, 
                             help="Include pre-release and development versions.")
+        parser.add_argument('--no-index', action='store_true', default=False)
     
     def install_robotpy(self, options):
         '''
@@ -868,7 +872,7 @@ class RobotpyInstaller(object):
             fp.write(opkg_script)
         opkg_files.append(opkg_script_fname)
 
-        print("Copying over the opkg cache...")
+        logger.info("Copying over the opkg cache...")
         self.ctrl.poor_sync(opkg_files, 'opkg_cache')
         self.remote_commands.append('bash opkg_cache/install_opkg.sh')
 
@@ -972,16 +976,16 @@ class RobotpyInstaller(object):
         else:
             # copy the pip cache over
             # .. this is inefficient
-            print("Copying over the pip cache...")
+            logger.info("Copying over the pip cache...")
             self.ctrl.poor_sync(self.pip_cache, 'pip_cache')
 
-            print("Running installation...")
+            logger.info("Running installation...")
             cmd_args = options.packages
         
         cmd += ' '.join(self._process_pip_args(options) + cmd_args)
         self.remote_commands.append(cmd)
         
-        print("Done.")
+        logger.info("Done.")
 
     # Backwards-compatibility aliases
     install_opts = install_pip_opts
@@ -993,6 +997,13 @@ def main(args=None):
 
     if args is None:
         args = sys.argv[1:]
+    
+    log_datefmt = "%H:%M:%S"
+    log_format = "%(asctime)s:%(msecs)03d %(levelname)-8s: %(name)-20s: %(message)s"
+    
+    logging.basicConfig(datefmt=log_datefmt,
+                        format=log_format,
+                        level=logging.DEBUG)
 
     # Because this is included with the RobotPy download package, there
     # are two ways to use this:
@@ -1034,6 +1045,9 @@ def main(args=None):
     if options.robot:
         installer.set_hostname(options.robot)
 
+    logger.info("RobotPy Installer %s", __version__)
+    logger.info("-> caching files at %s", cache_root)
+
     try:
         retval = options.cmdobj(options)
         installer.execute_remote()
@@ -1041,7 +1055,7 @@ def main(args=None):
         parser.error(str(e))
         retval = 1
     except Error as e:
-        sys.stderr.write(str(e) + '\n')
+        logger.error(str(e))
         retval = 1
     
     if retval is None:

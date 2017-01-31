@@ -15,7 +15,7 @@
 # copies in sync!
 #
 
-__version__ = '2017.1.0'
+__version__ = '2017.1.1'
 
 import argparse
 import configparser

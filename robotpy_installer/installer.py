@@ -15,7 +15,7 @@
 # copies in sync!
 #
 
-__version__ = '2017.1.1'
+__version__ = '2017.1.2'
 
 import argparse
 import configparser
@@ -200,7 +200,6 @@ class OpkgRepo(object):
         for results in self._toposort(pkgs):
             retval.extend(results)
         
-        print(retval)
         return retval
 
     def _toposort(self, data):

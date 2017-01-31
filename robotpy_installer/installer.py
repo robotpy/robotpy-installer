@@ -199,7 +199,8 @@ class OpkgRepo(object):
         retval = []
         for results in self._toposort(pkgs):
             retval.extend(results)
-            
+        
+        print(retval)
         return retval
 
     def _toposort(self, data):
@@ -242,16 +243,17 @@ class OpkgRepo(object):
         def _visit(n):
             if n in visited:
                 return
+            
+            visited.add(n)
             for m in nodes[n]:
-                visited.add(n)
-                _visit(n)
+                _visit(m)
             
             retval.append(n)
         
         for item in nodes:
             _visit(item)
         
-        return reversed(retval)
+        return retval
     
     def download(self, name):
         

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# (C) 2014-2015 Dustin Spicuzza. Distributed under MIT license.
+# (C) 2014-2017 Dustin Spicuzza. Distributed under MIT license.
 #
 # This is a simple (ha!) installer program that is designed to be used to
 # deploy RobotPy to a roborio via SSH
@@ -15,7 +15,7 @@
 # copies in sync!
 #
 
-__version__ = '2017.1.2'
+__version__ = '2017.1.3'
 
 import argparse
 import configparser
@@ -840,35 +840,50 @@ class RobotpyInstaller(object):
         # Write out the install script
         # -> we use a script because opkg doesn't have a good mechanism
         #    to only install a package if it's not already installed
-        opkg_script_fname = join(self.opkg_cache, 'install_opkg.sh')
-        opkg_script = ""
+        opkg_script_fname = join(self.opkg_cache, 'install_opkg.sh')        
         opkg_files = []
         package_list = opkg.resolve_pkg_deps(options.packages)
+        
+        opkg_script = inspect.cleandoc('''
+            set -e
+            PACKAGES=()
+            DO_INSTALL=0
+        ''')
+        
+        opkg_script_bit = inspect.cleandoc('''
+            if ! opkg list-installed | grep -F '%(name)s - %(version)s'; then
+                PACKAGES+=("opkg_cache/%(fname)s")
+                DO_INSTALL=1
+            else
+                echo "%(name)s already installed"
+            fi
+        ''')
         
         for package in package_list:
             try:
                 pkg, fname = opkg.get_cached_pkg(package)
             except OpkgError as e:
                 raise Error(e)
-
-            opkg_script_bit = inspect.cleandoc('''
-                set -e
-                if ! opkg list-installed | grep -F '%(name)s - %(version)s'; then
-                    opkg install %(options)s opkg_cache/%(fname)s
-                else
-                    echo "%(name)s already installed, continuing..."
-                fi
-            ''')
-
-            opkg_script_bit %= {
+             
+            opkg_script += "\n" + (opkg_script_bit % {
                 'fname': basename(fname),
                 'name': pkg['Package'],
                 'version': pkg['Version'],
-                'options': "--force-reinstall" if options.force_reinstall else ""
-            }
-            opkg_script += "\n" + opkg_script_bit
+            })
+            
             opkg_files.append(fname)
 
+        # Finish it out
+        opkg_script += "\n" + (inspect.cleandoc('''
+            if [ "${DO_INSTALL}" == "0" ]; then
+                echo "No packages to install."
+            else
+                opkg install %(options)s ${PACKAGES[@]}
+            fi
+        ''') % {
+            'options': "--force-reinstall" if options.force_reinstall else ""
+        })
+        
         with open(opkg_script_fname, 'w', newline='\n') as fp:
             fp.write(opkg_script)
         opkg_files.append(opkg_script_fname)

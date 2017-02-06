@@ -698,6 +698,7 @@ class RobotpyInstaller(object):
         self.cfg_filename = abspath(join(cache_root, '.installer_config'))
         
         self.pip_cache = abspath(join(cache_root, 'pip_cache'))
+        self.pip_tmp = abspath(join(cache_root, 'pip_tmp'))
         self.opkg_cache = abspath(join(cache_root, 'opkg_cache'))
         
         if not exists(self.pip_cache):
@@ -948,6 +949,8 @@ class RobotpyInstaller(object):
         
         # Use pip install --download to put packages into the cache
         pip_args = ['install',
+                    '--cache-dir',
+                    self.pip_tmp,
                     '--download',
                     self.pip_cache]
         
@@ -960,6 +963,12 @@ class RobotpyInstaller(object):
     
         return pip.main(pip_args)
     
+    def clean_pip(self):
+        '''
+            Removes pip_tmp directory.
+        '''
+        shutil.rmtree(self.pip_tmp, ignore_errors=True)
+
     # These share the same options
     install_pip_opts = download_pip_opts
     
@@ -1074,13 +1083,15 @@ def main(args=None):
         logger.error(str(e))
         retval = 1
     
+    installer.clean_pip()
+
     if retval is None:
         retval = 0
     elif retval is True:
         retval = 0
     elif retval is False:
         retval = 1
-    
+
     return retval
 
 if __name__ == '__main__':

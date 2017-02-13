@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2017.1.3'
+__version__ = '2017.1.4'
 
 import argparse
 import configparser

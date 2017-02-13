@@ -43,6 +43,10 @@ logger = logging.getLogger('robotpy.installer')
 
 is_windows = hasattr(sys, 'getwindowsversion')
 
+_FEEDS = [
+    'https://www.tortall.net/~robotpy/feeds/2017',
+    'http://download.ni.com/ni-linux-rt/feeds/2016/arm/ipk/cortexa9-vfpv3',
+]
 
 def md5sum(fname):
     md5 = hashlib.md5()
@@ -709,8 +713,8 @@ class RobotpyInstaller(object):
 
     def _get_opkg(self):
         opkg = OpkgRepo(self.opkg_cache, self.opkg_arch)
-        opkg.add_feed('https://www.tortall.net/~robotpy/feeds/2017')
-        opkg.add_feed("http://download.ni.com/ni-linux-rt/feeds/2016/arm/ipk/cortexa9-vfpv3")
+        for feed in _FEEDS:
+            opkg.add_feed(feed)
         return opkg
 
     def set_hostname(self, hostname):

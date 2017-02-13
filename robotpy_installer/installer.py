@@ -45,6 +45,9 @@ _FEEDS = [
     'http://download.ni.com/ni-linux-rt/feeds/2016/arm/ipk/cortexa9-vfpv3',
 ]
 
+_ROBORIO_IMAGE = "2017_v8"
+
+
 def md5sum(fname):
     md5 = hashlib.md5()
     with open(fname, 'rb') as fp:
@@ -713,6 +716,15 @@ class RobotpyInstaller(object):
         for feed in _FEEDS:
             opkg.add_feed(feed)
         return opkg
+    
+    def _add_image_check(self):
+        
+        cmd = "IV=$(grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini); echo $IV; "
+        cmd += "[ \"$IV\" == 'IMAGEVERSION = \"FRC_roboRIO_%s\"' ] || " % _ROBORIO_IMAGE
+        cmd += "(echo '-> ERROR: installer requires RoboRIO image %s! Use --ignore-image-version to force install' && /bin/false)" % _ROBORIO_IMAGE 
+        
+        self.remote_commands.append("(%s)" % cmd)
+        
 
     def set_hostname(self, hostname):
         if self._ctrl is not None:
@@ -779,6 +791,7 @@ class RobotpyInstaller(object):
         parser.add_argument('--pre', action='store_true', default=False, 
                             help="Include pre-release and development versions.")
         parser.add_argument('--no-index', action='store_true', default=False)
+        parser.add_argument('--ignore-image-version', action='store_true', default=False)
     
     def install_robotpy(self, options):
         '''
@@ -818,7 +831,10 @@ class RobotpyInstaller(object):
         parser.add_argument('--force-reinstall', action='store_true', default=False,
                             help='When upgrading, reinstall all packages even if they are already up-to-date.')
         parser.add_argument('--no-index', action='store_true', default=False)
-    install_opkg_opts = download_opkg_opts
+    
+    def install_opkg_opts(self, parser):
+        self.download_opkg_opts(parser)
+        parser.add_argument('--ignore-image-version', action='store_true', default=False)
 
     def download_opkg(self, options):
         """
@@ -836,6 +852,10 @@ class RobotpyInstaller(object):
             opkg.download(package)
 
     def install_opkg(self, options):
+        
+        if not options.ignore_image_version:
+            self._add_image_check()
+        
         opkg = self._get_opkg()
 
         # Write out the install script

@@ -11,9 +11,6 @@
 # around easily without having to think about it too hard and worry about
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
-# NOTE: This file is used in robotpy-wpilib and in pyfrc, please keep the two
-# copies in sync!
-#
 
 __version__ = '2017.1.3'
 

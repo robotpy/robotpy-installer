@@ -967,9 +967,8 @@ class RobotpyInstaller(object):
         if len(options.requirement) == 0 and len(options.packages) == 0:
             raise ArgError("You must give at least one requirement to install")
         
-        # Use pip install --download to put packages into the cache
-        pip_args = ['install',
-                    '--download',
+        # Use pip download to put packages into the cache
+        pip_args = ['download',
                     self.pip_cache]
         
         pip_args.extend(self._process_pip_args(options))

@@ -694,7 +694,9 @@ class RobotpyInstaller(object):
         'install-pip',
         'download-pip',
         'install-opkg',
-        'download-opkg'
+        'download-opkg',
+        'list-opkg',
+        'search-opkg',
     ]
 
     def __init__(self, cache_root):
@@ -912,6 +914,43 @@ class RobotpyInstaller(object):
         logger.info("Copying over the opkg cache...")
         self.ctrl.poor_sync(opkg_files, 'opkg_cache')
         self.remote_commands.append('bash opkg_cache/install_opkg.sh')
+
+    def _get_opkg_packages(self, options):
+        opkg = self._get_opkg()
+        if not options.no_index:
+            opkg.update_packages()
+
+        for feed in opkg.feeds:
+            for pkgname, pkgdata in feed['pkgs'].items():
+                for pkg in pkgdata:
+                    yield pkg
+
+
+    def list_opkg_opts(self, parser):
+        parser.add_argument('--no-index', action='store_true', default=False)
+
+    def list_opkg(self, options):
+        data = set()
+        for pkg in self._get_opkg_packages(options):
+            data.add('%(Package)s - %(Version)s' % pkg)
+
+        for v in sorted(data):
+            print(v)
+
+    def search_opkg_opts(self, parser):
+        self.list_opkg_opts(parser)
+        parser.add_argument('search')
+
+    def search_opkg(self, options):
+        # TODO: make this more intelligent...
+        data = set()
+        option = options.search
+        for pkg in self._get_opkg_packages(options):
+            if option in pkg['Package'] or \
+               option in pkg.get('Description', ''):
+                data.add('%(Package)s - %(Version)s' % pkg)
+        for v in sorted(data):
+            print(v)
 
     #
     # Pip install commands

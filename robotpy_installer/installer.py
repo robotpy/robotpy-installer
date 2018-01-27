@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2018.0.0'
+__version__ = '2018.0.1'
 
 import argparse
 import configparser
@@ -45,7 +45,7 @@ _FEEDS = [
     'http://download.ni.com/ni-linux-rt/feeds/2017/arm/ipk/cortexa9-vfpv3',
 ]
 
-_ROBORIO_IMAGE = "2018_v16"
+_ROBORIO_IMAGES = ["2018_v16", "2018v17"]
 
 
 def md5sum(fname):
@@ -722,8 +722,9 @@ class RobotpyInstaller(object):
     def _add_image_check(self):
 
         cmd = "IV=$(grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini); echo $IV; "
-        cmd += "[ \"$IV\" == 'IMAGEVERSION = \"FRC_roboRIO_%s\"' ] || " % _ROBORIO_IMAGE
-        cmd += "(echo '-> ERROR: installer requires RoboRIO image %s! Use --ignore-image-version to force install' && /bin/false)" % _ROBORIO_IMAGE
+        for image in _ROBORIO_IMAGES:
+            cmd += "[ \"$IV\" == 'IMAGEVERSION = \"FRC_roboRIO_%s\"' ] || " % image
+        cmd += "(echo '-> ERROR: installer requires RoboRIO image %s! Use --ignore-image-version to force install' && /bin/false)" % _ROBORIO_IMAGES[-1]
 
         self.remote_commands.append("(%s)" % cmd)
 

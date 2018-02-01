@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2018.0.1'
+__version__ = '2018.0.2'
 
 import argparse
 import configparser
@@ -45,7 +45,7 @@ _FEEDS = [
     'http://download.ni.com/ni-linux-rt/feeds/2017/arm/ipk/cortexa9-vfpv3',
 ]
 
-_ROBORIO_IMAGES = ["2018_v16", "2018v17"]
+_ROBORIO_IMAGES = ["2018_v16", "2018_v17"]
 
 
 def md5sum(fname):

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-# (C) 2014-2017 Dustin Spicuzza. Distributed under MIT license.
+# (C) 2014-2018 Dustin Spicuzza. Distributed under MIT license.
 #
 # This is a simple (ha!) installer program that is designed to be used to
 # deploy RobotPy to a roborio via SSH
@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2018.0.2'
+__version__ = '2018.0.3'
 
 import argparse
 import configparser

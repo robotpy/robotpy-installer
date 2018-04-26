@@ -1003,14 +1003,22 @@ class RobotpyInstaller(object):
             import pip
         except ImportError:
             raise Error("ERROR: pip must be installed to download python packages")
+        
+        # Old pip args
+        pip_args = ['--disable-pip-version-check',
+                    'install', '--no-binary', ':all:', '--download', self.pip_cache]
+        
+        try:
+            pip_version = LooseVersion(pip.__version__)
+        except:
+            pass
+        else:
+            if pip_version >= LooseVersion('8.0'):
+                pip_args = ['--disable-pip-version-check',
+                            'download', '--no-binary', ':all:', '-d', self.pip_cache]
 
         if len(options.requirement) == 0 and len(options.packages) == 0:
             raise ArgError("You must give at least one requirement to install")
-
-        # Use pip install --download to put packages into the cache
-        pip_args = ['install',
-                    '--download',
-                    self.pip_cache]
 
         pip_args.extend(self._process_pip_args(options))
 
@@ -1018,8 +1026,9 @@ class RobotpyInstaller(object):
             pip_args.extend(['-r', r])
 
         pip_args.extend(options.packages)
-
-        return pip.main(pip_args)
+        pip_args = [sys.executable, '-m', 'pip'] + pip_args
+        
+        return subprocess.call(pip_args)
 
     # These share the same options
     install_pip_opts = download_pip_opts

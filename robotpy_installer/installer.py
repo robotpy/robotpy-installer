@@ -761,7 +761,6 @@ class RobotpyInstaller(object):
         options.packages = ['wpilib',
                             'robotpy-hal-base',
                             'robotpy-hal-roborio']
-        options.upgrade = True
 
         options.force_reinstall = False
         options.ignore_installed = False
@@ -810,6 +809,8 @@ class RobotpyInstaller(object):
         # for download-robotpy, however
         pip_options = self._create_rpy_pip_options(options)
         pip_options.pre = True
+        # Also always upgrade
+        pip_options.upgrade = True
         return self.install_pip(pip_options)
 
     # These share the same options
@@ -977,11 +978,11 @@ class RobotpyInstaller(object):
         parser.add_argument('--no-deps', action='store_true', default=False,
                             help="Don't install package dependencies.")
 
-    def _process_pip_args(self, options):
+    def _process_pip_args(self, options, no_upgrade=False):
         pip_args = []
         if options.pre:
             pip_args.append('--pre')
-        if options.upgrade:
+        if options.upgrade and not no_upgrade:
             pip_args.append('--upgrade')
         if options.force_reinstall:
             pip_args.append('--force-reinstall')
@@ -1020,7 +1021,7 @@ class RobotpyInstaller(object):
         if len(options.requirement) == 0 and len(options.packages) == 0:
             raise ArgError("You must give at least one requirement to install")
 
-        pip_args.extend(self._process_pip_args(options))
+        pip_args.extend(self._process_pip_args(options, no_upgrade=True))
 
         for r in options.requirement:
             pip_args.extend(['-r', r])

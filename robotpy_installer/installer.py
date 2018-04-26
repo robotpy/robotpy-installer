@@ -1005,7 +1005,7 @@ class RobotpyInstaller(object):
             raise Error("ERROR: pip must be installed to download python packages")
         
         # Old pip args
-        pip_args = ['--disable-pip-version-check',
+        pip_args = ['--no-cache-dir', '--disable-pip-version-check',
                     'install', '--no-binary', ':all:', '--download', self.pip_cache]
         
         try:
@@ -1014,7 +1014,7 @@ class RobotpyInstaller(object):
             pass
         else:
             if pip_version >= LooseVersion('8.0'):
-                pip_args = ['--disable-pip-version-check',
+                pip_args = ['--no-cache-dir', '--disable-pip-version-check',
                             'download', '--no-binary', ':all:', '-d', self.pip_cache]
 
         if len(options.requirement) == 0 and len(options.packages) == 0:

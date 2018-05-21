@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2018.0.4'
+__version__ = '2018.0.5'
 
 import argparse
 import configparser
@@ -376,6 +376,7 @@ class SshExecError(Error):
 mitm_args = ['-oStrictHostKeyChecking=no', '-oUserKnownHostsFile=/dev/null']
 
 def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=False, no_resolve=False):
+    # hostname can be a team number or an ip / hostname
 
     dirty = True
     cfg = configparser.ConfigParser()
@@ -384,10 +385,10 @@ def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=Fal
     if exists(cfg_filename):
         cfg.read(cfg_filename)
         dirty = False
-
+    
     if hostname is not None:
         dirty = True
-        cfg['auth']['hostname'] = hostname
+        cfg['auth']['hostname'] = str(hostname)
 
     hostname = cfg['auth'].get('hostname')
 
@@ -396,7 +397,7 @@ def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=Fal
 
         print("Robot setup (hit enter for default value):")
         while not hostname:
-            hostname = input('Robot hostname (like roborio-XXX-frc.local, or an IP address): ')
+            hostname = input('Team number or robot hostname: ')
 
         cfg['auth']['hostname'] = hostname
 
@@ -414,7 +415,15 @@ def ssh_from_cfg(cfg_filename, username, password, hostname=None, allow_mitm=Fal
                     break
     except Exception:
         pass
-
+    
+    # check to see if this is a team number
+    try:
+        team = int(hostname.strip())
+    except ValueError:
+        pass
+    else:
+        # TODO: be smarter about this in the future
+        hostname = '10.%d.%d.2' % (int(team) // 100, int(team) % 100)
 
     if not no_resolve:
         try:
@@ -730,6 +739,7 @@ class RobotpyInstaller(object):
 
 
     def set_hostname(self, hostname):
+        '''Set the hostname or the team number'''
         if self._ctrl is not None:
             raise ValueError("internal error: too late")
         self._hostname = hostname
@@ -1117,7 +1127,8 @@ def main(args=None):
 
     # shared options
     shared = argparse.ArgumentParser(add_help=False)
-    shared.add_argument('--robot', default=None, help='Specify the robot hostname')
+    shared.add_argument('--robot', default=None, help='Specify the robot hostname (overrides --team)')
+    shared.add_argument('--team', default=None, type=int, help='Specify team number to deploy for')
 
     # Setup various options
     for command in installer.commands:
@@ -1131,6 +1142,8 @@ def main(args=None):
     options = parser.parse_args(args)
     if options.robot:
         installer.set_hostname(options.robot)
+    elif options.team:
+        installer.set_hostname(options.team)
 
     logger.info("RobotPy Installer %s", __version__)
     logger.info("-> caching files at %s", cache_root)

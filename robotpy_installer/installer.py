@@ -66,7 +66,15 @@ def _urlretrieve(url, fname):
         sys.stdout.write("\r%02d%%" % percent)
         sys.stdout.flush()
 
-    urlretrieve(url, fname, _reporthook)
+    try:
+        urlretrieve(url, fname, _reporthook)
+    except Exception as e:
+        if 'certificate verify failed' in str(e) and sys.platform == 'darwin':
+            pyver = '.'.join(map(str, sys.version_info[:2]))
+            msg = "SSL certificates are not installed! Run /Applications/Python %s/Install Certificates.command to fix this" % pyver
+            raise Exception(msg) from e
+        else:
+            raise e
     sys.stdout.write('\n')
 
 class OpkgError(Exception):

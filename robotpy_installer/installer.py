@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = '2018.0.6'
+__version__ = '2019.0.0'
 
 import argparse
 import configparser
@@ -41,11 +41,11 @@ logger = logging.getLogger('robotpy.installer')
 is_windows = hasattr(sys, 'getwindowsversion')
 
 _FEEDS = [
-    'https://www.tortall.net/~robotpy/feeds/2018',
-    'http://download.ni.com/ni-linux-rt/feeds/2017/arm/ipk/cortexa9-vfpv3',
+    'https://www.tortall.net/~robotpy/feeds/2019',
+    'http://download.ni.com/ni-linux-rt/feeds/2018/arm/cortexa9-vfpv3',
 ]
 
-_ROBORIO_IMAGES = ["2018_v16", "2018_v17"]
+_ROBORIO_IMAGES = ["2019_v12"]
 
 
 def md5sum(fname):
@@ -795,7 +795,7 @@ class RobotpyInstaller(object):
     def _create_rpy_opkg_options(self, options):
         # Construct an appropriate line to install
         options.requirement = []
-        options.packages = ['python36']
+        options.packages = ['python37']
         options.upgrade = True
 
         options.force_reinstall = False

@@ -1,8 +1,13 @@
 ---
 language: python
+sudo: required
+dist: xenial
 
 python:
-- "3.6"
+- "3.7"
+
+matrix:
+  fast_finish: true
 
 install:
 - pip install -r testing-requirements.txt
@@ -10,6 +15,16 @@ install:
 
 script:
 - tests/run_tests.sh
+
+jobs:
+  include:
+  - stage: format-check
+    python:
+    - "3.6"
+    install:
+    - pip install black
+    script:
+    - black --check --diff .
 
 deploy:
 - provider: pypi

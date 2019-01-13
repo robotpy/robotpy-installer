@@ -48,6 +48,8 @@ _FEEDS = [
 
 _ROBORIO_IMAGES = ["2019_v12"]
 
+_ROBOTPY_PYTHON_VERSION = "python37"
+
 
 def md5sum(fname):
     md5 = hashlib.md5()
@@ -844,7 +846,7 @@ class RobotpyInstaller(object):
     def _create_rpy_opkg_options(self, options):
         # Construct an appropriate line to install
         options.requirement = []
-        options.packages = ["python37"]
+        options.packages = [_ROBOTPY_PYTHON_VERSION]
         options.upgrade = True
 
         options.force_reinstall = False
@@ -934,7 +936,10 @@ class RobotpyInstaller(object):
         opkg = self._get_opkg()
         if not options.no_index:
             opkg.update_packages()
-        package_list = opkg.resolve_pkg_deps(options.packages)
+
+        packages = self._resolve_opkg_names(opkg, options.packages)
+
+        package_list = opkg.resolve_pkg_deps(packages)
         for package in package_list:
             opkg.download(package)
 
@@ -950,7 +955,8 @@ class RobotpyInstaller(object):
         #    to only install a package if it's not already installed
         opkg_script_fname = join(self.opkg_cache, "install_opkg.sh")
         opkg_files = []
-        package_list = opkg.resolve_pkg_deps(options.packages)
+        package_list = self._resolve_opkg_names(opkg, options.packages)
+        package_list = opkg.resolve_pkg_deps(package_list)
 
         opkg_script = inspect.cleandoc(
             """
@@ -1009,6 +1015,28 @@ class RobotpyInstaller(object):
         logger.info("Copying over the opkg cache...")
         self.ctrl.poor_sync(opkg_files, "opkg_cache")
         self.remote_commands.append("bash opkg_cache/install_opkg.sh")
+
+    def _resolve_opkg_names(self, opkg, packages):
+        resolved = []
+        for pkg in packages:
+            try:
+                opkg.get_pkginfo(pkg)
+                resolved.append(pkg)
+            except OpkgError as e:
+                for prefix in (
+                    _ROBOTPY_PYTHON_VERSION,
+                    _ROBOTPY_PYTHON_VERSION + "-robotpy",
+                ):
+                    try:
+                        opkg.get_pkginfo(prefix + "-" + pkg)
+                        resolved.append(prefix + "-" + pkg)
+                    except OpkgError:
+                        pass
+                    else:
+                        break
+                else:
+                    raise e
+        return resolved
 
     def _get_opkg_packages(self, options):
         opkg = self._get_opkg()

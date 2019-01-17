@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = "2019.0.1"
+__version__ = "2019.0.2"
 
 import argparse
 import configparser
@@ -46,7 +46,7 @@ _FEEDS = [
     "http://download.ni.com/ni-linux-rt/feeds/2018/arm/cortexa9-vfpv3",
 ]
 
-_ROBORIO_IMAGES = ["2019_v12"]
+_ROBORIO_IMAGES = ["2019_v12", "2019_v13"]
 
 _ROBOTPY_PYTHON_VERSION = "python37"
 

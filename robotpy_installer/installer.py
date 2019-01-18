@@ -28,6 +28,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 
 from collections import OrderedDict
 from distutils.version import LooseVersion
@@ -413,6 +414,78 @@ class SshExecError(Error):
 mitm_args = ["-oStrictHostKeyChecking=no", "-oUserKnownHostsFile=/dev/null"]
 
 
+def _resolve_addr(hostname):
+    try:
+        logger.debug("Looking up hostname '%s'...", hostname)
+        # addrs = [(family, socktype, proto, canonname, sockaddr)]
+        addrs = socket.getaddrinfo(hostname, None)
+    except socket.gaierror as e:
+        raise Error("Could not find robot at %s" % hostname) from e
+
+    # Sort the address by family.
+    # Lucky for us, the family type is the first element of the tuple, and it's an enumerated type with
+    # AF_INET=2 (IPv4) and AF_INET6=23 (IPv6), so sorting them will provide us with the AF_INET address first.
+    addrs.sort()
+
+    # pick the first address that is sock_stream
+    # AF_INET sockaddr tuple:  (address, port)
+    # AF_INET6 sockaddr tuple: (address, port, flow info, scope id)
+    for _, socktype, _, _, sockaddr in addrs:
+        if socktype == socket.SOCK_STREAM:
+            ip = sockaddr[
+                0
+            ]  # The address if the first tuple element for both AF_INET and AF_INET6
+            logger.debug("-> Found %s at %s" % (hostname, ip))
+            hostname = ip
+            break
+
+    return hostname
+
+
+class RobotFinder:
+    def __init__(self, *addrs):
+        self.tried = 0
+        self.answer = None
+        self.addrs = addrs
+        self.cond = threading.Condition()
+
+    def find(self):
+
+        with self.cond:
+            self.tried = 0
+            for addr, resolve in self.addrs:
+                t = threading.Thread(target=self._try_server, args=(addr, resolve))
+                t.setDaemon(True)
+                t.start()
+
+            while self.answer is None and self.tried != len(self.addrs):
+                self.cond.wait()
+
+            if self.answer:
+                logger.info("-> Robot is at %s", self.answer)
+                return self.answer
+
+    def _try_server(self, addr, resolve):
+        success = False
+        try:
+            if resolve:
+                addr = _resolve_addr(addr)
+            else:
+                sd = socket.create_connection((addr, 22), timeout=10)
+                sd.close()
+
+            success = True
+        except Exception:
+            pass
+
+        with self.cond:
+            self.tried += 1
+            if success and not self.answer:
+                self.answer = addr
+
+            self.cond.notify_all()
+
+
 def ssh_from_cfg(
     cfg_filename, username, password, hostname=None, allow_mitm=False, no_resolve=False
 ):
@@ -457,39 +530,44 @@ def ssh_from_cfg(
         pass
 
     # check to see if this is a team number
+    team = None
     try:
         team = int(hostname.strip())
     except ValueError:
-        pass
-    else:
-        # TODO: be smarter about this in the future
-        hostname = "10.%d.%d.2" % (int(team) // 100, int(team) % 100)
+        # check to see if it matches a team hostname
+        # -> allows legacy hostname configurations to benefit from
+        #    the robot finder
+        hostmod = hostname.lower().strip()
+        if not no_resolve:
+            m = re.search(r"10.(\d+).(\d+).2", hostmod)
+            if m:
+                team = int(m.group(1)) * 100 + int(m.group(2))
+            else:
+                for s in [
+                    r"roborio-(\d+)-frc\.local",
+                    r"roborio-(\d+)-frc\.lan",
+                    r"roborio-(\d+)-frc\.frc-field\.local",
+                ]:
+                    m = re.search(s, hostmod)
+                    if m:
+                        team = int(m.group(1))
+                        break
+    if team:
+        logger.info("Finding robot for team %s", team)
+        finder = RobotFinder(
+            ("10.%d.%d.2" % (team // 100, team % 100), False),
+            ("roboRIO-%d-FRC.local" % team, True),
+            ("172.22.11.2", False),
+            ("roboRIO-%d-FRC.lan" % team, True),
+            ("roboRIO-%d-FRC.frc-field.local" % team, True),
+        )
+        hostname = finder.find()
+        no_resolve = True
+        if not hostname:
+            raise Error("Could not find team %s robot" % team)
 
     if not no_resolve:
-        try:
-            logger.info("Looking up hostname '%s'...", hostname)
-            # addrs = [(family, socktype, proto, canonname, sockaddr)]
-            addrs = socket.getaddrinfo(hostname, None)
-        except socket.gaierror as e:
-            raise Error("Could not find robot at %s" % hostname) from e
-
-        # Sort the address by family.
-        # Lucky for us, the family type is the first element of the tuple, and it's an enumerated type with
-        # AF_INET=2 (IPv4) and AF_INET6=23 (IPv6), so sorting them will provide us with the AF_INET address first.
-        addrs.sort()
-
-        # pick the first address that is sock_stream
-        # AF_INET sockaddr tuple:  (address, port)
-        # AF_INET6 sockaddr tuple: (address, port, flow info, scope id)
-        for _, socktype, _, _, sockaddr in addrs:
-            if socktype == socket.SOCK_STREAM:
-                ip = sockaddr[
-                    0
-                ]  # The address if the first tuple element for both AF_INET and AF_INET6
-                print("-> Found %s at %s" % (hostname, ip))
-                print()
-                hostname = ip
-                break
+        hostname = _resolve_addr(hostname)
 
     logger.info("Connecting to robot via SSH at %s", hostname)
 

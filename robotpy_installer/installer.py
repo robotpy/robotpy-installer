@@ -13,12 +13,15 @@
 #
 
 __version__ = "2019.0.2"
+_useragent = "robotpy-installer/%s" % __version__
 
 import argparse
 import configparser
+import contextlib
 import getpass
 import hashlib
 import inspect
+import json
 import os
 import socket
 import string
@@ -29,10 +32,12 @@ import subprocess
 import sys
 import tempfile
 
+import urllib.error
+import urllib.request
+
 from collections import OrderedDict
 from distutils.version import LooseVersion
 from functools import reduce as _reduce
-from urllib.request import urlretrieve
 
 import logging
 
@@ -61,17 +66,86 @@ def md5sum(fname):
     return md5.hexdigest()
 
 
-def _urlretrieve(url, fname):
+def _urlretrieve(url, fname, cache):
     # Get it
     print("Downloading", url)
 
-    def _reporthook(count, blocksize, totalsize):
-        percent = min(int(count * blocksize * 100 / totalsize), 100)
-        sys.stdout.write("\r%02d%%" % percent)
+    # Save bandwidth! Use stored metadata to prevent re-downloading
+    # stuff we already have
+    last_modified = None
+    etag = None
+    cache_fname = None
+
+    if cache:
+        cache_fname = fname + ".jmd"
+        if exists(fname) and exists(cache_fname):
+            try:
+                with open(cache_fname) as fp:
+                    md = json.load(fp)
+                if md5sum(fname) == md["md5"]:
+                    etag = md.get("etag")
+                    last_modified = md.get("last-modified")
+            except Exception:
+                pass
+
+    blocksize = 1024 * 8
+
+    def _reporthook(read, totalsize):
+        if totalsize > 0:
+            percent = min(int(read * 100 / totalsize), 100)
+            sys.stdout.write("\r%02d%%" % percent)
+        else:
+            sys.stdout.write("\r%dbytes" % read)
         sys.stdout.flush()
 
     try:
-        urlretrieve(url, fname, _reporthook)
+        # adapted from urlretrieve source
+        headers = {"User-Agent": _useragent}
+        if last_modified:
+            headers["If-Modified-Since"] = last_modified
+        if etag:
+            headers["If-None-Match"] = etag
+
+        req = urllib.request.Request(url, headers=headers)
+
+        with contextlib.closing(urllib.request.urlopen(req)) as rfp:
+            headers = rfp.info()
+
+            with open(fname, "wb") as fp:
+
+                # Deal with header stuff
+                size = -1
+                read = 0
+                if "content-length" in headers:
+                    size = int(headers["Content-Length"])
+
+                while True:
+                    block = rfp.read(blocksize)
+                    if not block:
+                        break
+                    read += len(block)
+                    fp.write(block)
+                    _reporthook(read, size)
+
+        if size >= 0 and read < size:
+            raise ValueError("Only retrieved %s of %s bytes" % (read, size))
+
+        # If we received info from the server, cache it
+        if cache_fname:
+            md = {}
+            if "etag" in headers:
+                md["etag"] = headers["ETag"]
+            if "last-modified" in headers:
+                md["last-modified"] = headers["Last-Modified"]
+            if md:
+                md["md5"] = md5sum(fname)
+                with open(cache_fname, "w") as fp:
+                    json.dump(md, fp)
+    except urllib.error.HTTPError as e:
+        if e.code == 304:
+            sys.stdout.write("Not modified")
+        else:
+            raise
     except Exception as e:
         if "certificate verify failed" in str(e) and sys.platform == "darwin":
             pyver = ".".join(map(str, sys.version_info[:2]))
@@ -124,7 +198,7 @@ class OpkgRepo(object):
     def update_packages(self):
         for feed in self.feeds:
             pkgurl = feed["url"] + "/Packages"
-            _urlretrieve(pkgurl, feed["db_fname"])
+            _urlretrieve(pkgurl, feed["db_fname"], True)
             self.load_package_db(feed)
 
     def load_package_db(self, feed):
@@ -295,7 +369,7 @@ class OpkgRepo(object):
 
         # Only download it if necessary
         if not exists(fname) or not md5sum(fname) == pkg["MD5Sum"]:
-            _urlretrieve(pkg["url"], fname)
+            _urlretrieve(pkg["url"], fname, True)
         # Validate it
         if md5sum(fname) != pkg["MD5Sum"]:
             raise OpkgError("Downloaded package for %s md5sum does not match" % name)
@@ -513,10 +587,10 @@ def ensure_win_bins(ignore_os=False):
     plink = join(_win_bins, "plink.exe")
 
     if not exists(psftp):
-        _urlretrieve(_psftp_url, psftp)
+        _urlretrieve(_psftp_url, psftp, True)
 
     if not exists(plink):
-        _urlretrieve(_plink_url, plink)
+        _urlretrieve(_plink_url, plink, True)
 
     return _win_bins
 

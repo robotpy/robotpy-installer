@@ -928,6 +928,9 @@ class RobotpyInstaller(object):
         self._hostname = None
         self.remote_commands = []
 
+        # code, message
+        self.error_checks = {}
+
     def _get_opkg(self):
         opkg = OpkgRepo(self.opkg_cache, self.opkg_arch)
         for feed in _FEEDS:
@@ -966,7 +969,15 @@ class RobotpyInstaller(object):
 
     def execute_remote(self):
         if len(self.remote_commands) > 0:
-            self.ctrl.ssh(" && ".join(self.remote_commands))
+            try:
+                self.ctrl.ssh(" && ".join(self.remote_commands))
+            except SshExecError as e:
+                for code, message in self.error_checks.items():
+                    if e.retval == code:
+                        logger.error(message)
+                        break
+                else:
+                    raise
 
     #
     # Commands
@@ -1366,6 +1377,12 @@ class RobotpyInstaller(object):
         # copy them to the cache with a unique name, and delete them later?
         if len(options.requirement) != 0:
             raise NotImplementedError()
+
+        self.remote_commands.append("([ -x /usr/local/bin/pip3 ] || exit 87)")
+        self.error_checks[87] = (
+            "pip3 not found, did you install RobotPy?\n\n"
+            + "Use the download-robotpy and install-robotpy commands to install."
+        )
 
         cmd = "/usr/local/bin/pip3 install --no-index --find-links=pip_cache "
         cmd_args = []

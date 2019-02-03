@@ -1388,7 +1388,7 @@ class RobotpyInstaller(object):
         cmd_args = []
 
         # Is the user asking to install a file?
-        if len(options.packages) == 1 and exists(options.packages[0]):
+        if len(options.packages) == 1 and os.path.isfile(options.packages[0]):
             pkg = options.packages[0]
             self.ctrl.sftp(pkg, "pip_cache", mkdir=False)
             cmd_args = ["pip_cache/" + basename(pkg)]

@@ -611,29 +611,25 @@ def ssh_from_cfg(
         # check to see if it matches a team hostname
         # -> allows legacy hostname configurations to benefit from
         #    the robot finder
-        hostmod = hostname.lower().strip()
         if not no_resolve:
+            hostmod = hostname.lower().strip()
             m = re.search(r"10.(\d+).(\d+).2", hostmod)
             if m:
                 team = int(m.group(1)) * 100 + int(m.group(2))
             else:
-                for s in [
-                    r"roborio-(\d+)-frc\.local",
-                    r"roborio-(\d+)-frc\.lan",
-                    r"roborio-(\d+)-frc\.frc-field\.local",
-                ]:
-                    m = re.search(s, hostmod)
-                    if m:
-                        team = int(m.group(1))
-                        break
+                m = re.match(r"roborio-(\d+)-frc(?:\.(?:local|lan))?$", hostmod)
+                if m:
+                    team = int(m.group(1))
+
     if team:
         logger.info("Finding robot for team %s", team)
         finder = RobotFinder(
             ("10.%d.%d.2" % (team // 100, team % 100), False),
             ("roboRIO-%d-FRC.local" % team, True),
-            ("172.22.11.2", False),
+            ("172.22.11.2", False),  # USB
+            ("roboRIO-%d-FRC" % team, True),  # default DNS
             ("roboRIO-%d-FRC.lan" % team, True),
-            ("roboRIO-%d-FRC.frc-field.local" % team, True),
+            ("roboRIO-%d-FRC.frc-field.local" % team, True),  # practice field mDNS
         )
         hostname = finder.find()
         no_resolve = True

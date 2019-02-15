@@ -12,7 +12,7 @@
 # path issues. Reconsider this once we get to 4000+ lines of code... :p
 #
 
-__version__ = "2019.1.2"
+__version__ = "2019.1.3"
 _useragent = "robotpy-installer/%s" % __version__
 
 import argparse
@@ -52,7 +52,7 @@ _FEEDS = [
     "http://download.ni.com/ni-linux-rt/feeds/2018/arm/cortexa9-vfpv3",
 ]
 
-_ROBORIO_IMAGES = ["2019_v12", "2019_v13"]
+_ROBORIO_IMAGES = ["2019_v12", "2019_v13", "2019_v14"]
 
 _ROBOTPY_PYTHON_VERSION = "python37"
 

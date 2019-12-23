@@ -1090,24 +1090,20 @@ class RobotpyInstaller(object):
         parser.add_argument(
             "--ignore-image-version", action="store_true", default=False
         )
-        parser.add_argument(
-            "-r",
-            "--requirement",
-            action="append",
-            default=[],
-            help="Install from the given requirements file. This option can be used multiple times.",
-        )
 
-    def _load_opkg_from_req(*files):
+    def _load_opkg_from_req(self, *files):
         """
             Pull the list of opkgs from the files
         """
         opkgs = []
+        # Loop through the passed in files to support multiple requirements files
         for file in files:
             with open(file, "r") as f:
                 for row in f.readlines():
-                    if not row.startswith("#"):
-                        opkgs.append(row)
+                    # Ignore commented lines and empty lines
+                    if row.strip() and not row.startswith("#"):
+                        # Add the package to the list of packages (and remove leading and trailing whitespace)
+                        opkgs.append(row.strip())
         return opkgs
 
     def download_opkg(self, options):
@@ -1123,7 +1119,7 @@ class RobotpyInstaller(object):
             opkg.update_packages()
         if options.requirement:
             packages = self._resolve_opkg_names(
-                opkg, _load_opkg_from_req(*options.requirement)
+                opkg, self._load_opkg_from_req(*options.requirement)
             )
         else:
             packages = self._resolve_opkg_names(opkg, options.packages)
@@ -1146,7 +1142,7 @@ class RobotpyInstaller(object):
         opkg_files = []
         if options.requirement:
             package_list = self._resolve_opkg_names(
-                opkg, _load_opkg_from_req(*options.requirement)
+                opkg, self._load_opkg_from_req(*options.requirement)
             )
         else:
             package_list = self._resolve_opkg_names(opkg, options.packages)

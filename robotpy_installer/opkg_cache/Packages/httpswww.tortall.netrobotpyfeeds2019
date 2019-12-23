@@ -1,0 +1,649 @@
+Package: ATLAS
+Version: 3.10.3
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 65d4174add701833ce67d5466b561995
+Size: 9382696
+Filename: ATLAS_3.10.3_cortexa9-vfpv3.ipk
+Description: Automatically Tuned Linear Algebra Software
+OE: ATLAS
+Homepage: http://www.vesperix.com/arm/atlas-arm/
+Depends: libgfortran3 (>= 6.3.0)
+Priority: optional
+
+
+Package: ATLAS-dev
+Version: 3.10.3
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: e56f23ddd776e2d23fb58fdc586fdbb3
+Size: 5474284
+Filename: ATLAS-dev_3.10.3_cortexa9-vfpv3.ipk
+Description: Automatically Tuned Linear Algebra Software (development files)
+OE: ATLAS
+Homepage: http://www.vesperix.com/arm/atlas-arm/
+Depends: ATLAS (= 3.10.3)
+Priority: optional
+
+
+Package: gfortran
+Version: 6.3.0-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: NI Linux Real-Time Maintainers <nilrt@ni.com>
+MD5Sum: 3431cc69341bc2d432684b30a3c088e1
+Size: 7451430
+Filename: gfortran_6.3.0-r0_cortexa9-vfpv3.ipk
+Description: GNU cc and gcc C compilers
+ GNU cc and gcc C compilers.
+OE: gcc
+Homepage: http://www.gnu.org/software/gcc/
+Depends: libc6 (>= 2.24), libgmp10 (>= 6.1.2), libmpc3 (>= 1.0.3), libmpfr4 (>= 3.1.5), libz1 (>= 1.2.11)
+Priority: optional
+
+
+Package: gfortran-symlinks
+Version: 6.3.0-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: NI Linux Real-Time Maintainers <nilrt@ni.com>
+MD5Sum: cb75cffd9928eaa21d7c56ad956ca569
+Size: 804
+Filename: gfortran-symlinks_6.3.0-r0_cortexa9-vfpv3.ipk
+Description: GNU cc and gcc C compilers
+ GNU cc and gcc C compilers.
+OE: gcc
+Homepage: http://www.gnu.org/software/gcc/
+Depends: gfortran
+Priority: optional
+
+
+Package: libgfortran-dbg
+Version: 6.3.0-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: NI Linux Real-Time Maintainers <nilrt@ni.com>
+MD5Sum: 46995308a61909e5f7c1fe408a2b0cf2
+Size: 674098
+Filename: libgfortran-dbg_6.3.0-r0_cortexa9-vfpv3.ipk
+Description: GNU cc and gcc C compilers - Debugging files
+ GNU cc and gcc C compilers.  This package contains ELF symbols and
+ related sources for debugging purposes.
+OE: libgfortran
+Homepage: http://www.gnu.org/software/gcc/
+Priority: optional
+
+
+Package: libgfortran-dev
+Version: 6.3.0-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: NI Linux Real-Time Maintainers <nilrt@ni.com>
+MD5Sum: c53919217025a2d94638e3b2db0233c4
+Size: 35262
+Filename: libgfortran-dev_6.3.0-r0_cortexa9-vfpv3.ipk
+Description: GNU cc and gcc C compilers - Development files
+ GNU cc and gcc C compilers.  This package contains symbolic links, header
+ files, and related items necessary for software development.
+OE: libgfortran
+Homepage: http://www.gnu.org/software/gcc/
+Depends: libgfortran3 (= 6.3.0-r0)
+Priority: optional
+
+
+Package: libgfortran3
+Version: 6.3.0-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 19fafc3c7f6251caa1a2dd5bf6577080
+Size: 240308
+Filename: libgfortran3_6.3.0-r0_cortexa9-vfpv3.ipk
+Description: Fortran runtime
+OE: libgfortran
+Homepage: http://gcc.gnu.org
+Priority: optional
+
+
+Package: opencv3
+Version: 3.4.5-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 0b9245a30d82545028722a5c52d82ebe
+Size: 10426820
+Filename: opencv3_3.4.5-r0_cortexa9-vfpv3.ipk
+Description: Open Source Computer Vision Library
+OE: unknown
+Homepage: http://opencv.org/
+Depends: libc6, libstdc++6
+Priority: optional
+
+
+Package: opencv3-dev
+Version: 3.4.5-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 2d583a398b971188f57fc58e7091dbda
+Size: 842122
+Filename: opencv3-dev_3.4.5-r0_cortexa9-vfpv3.ipk
+Description: Open Source Computer Vision Library (development files)
+OE: unknown
+Homepage: http://opencv.org/
+Depends: opencv3 (= 3.5.0-r0)
+Priority: optional
+
+
+Package: python37
+Version: 3.7.2-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 22d19518306b40c6890516741e7d89c5
+Size: 11344706
+Filename: python37_3.7.2-r0_cortexa9-vfpv3.ipk
+Description: Python programming language
+OE: python37
+Homepage: http://www.python.org
+Depends: libc6
+Priority: optional
+
+
+Package: python37-dbg
+Version: 3.7.2-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 8b732ece663062c515810269c3f154c6
+Size: 5908076
+Filename: python37-dbg_3.7.2-r0_cortexa9-vfpv3.ipk
+Description: Python programming language debug files
+OE: python37
+Homepage: http://www.python.org
+Depends: python37 (= 3.7.2-r0)
+Priority: optional
+
+
+Package: python37-dev
+Version: 3.7.2-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: d9c9fd71c3aa1da1493884d33a1c7607
+Size: 7322524
+Filename: python37-dev_3.7.2-r0_cortexa9-vfpv3.ipk
+Description: Python programming language development files
+OE: python37
+Homepage: http://www.python.org
+Depends: python37 (= 3.7.2-r0)
+Priority: optional
+
+
+Package: python37-numpy
+Version: 1.15.4
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 611cbc302a67eb4f98acc33f2d7764d2
+Size: 6737540
+Filename: python37-numpy_1.15.4_cortexa9-vfpv3.ipk
+Description: NumPy: array processing for numbers, strings, records, and objects.
+OE: unknown
+Homepage: unknown
+Depends: python37, ATLAS (>= 3.10.3), libgfortran3
+Priority: optional
+
+
+Package: python37-opencv3
+Version: 3.4.5-r0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 488e596bd7db7f2ec8f547a09cbc9954
+Size: 839526
+Filename: python37-opencv3_3.4.5-r0_cortexa9-vfpv3.ipk
+Description: Open Source Computer Vision Library (Python 3.6 bindings)
+OE: unknown
+Homepage: http://opencv.org/
+Depends: opencv3 (= 3.4.5-r0), python37-numpy (>= 1.15.4)
+Priority: optional
+
+
+Package: python37-ptvsd
+Version: 4.2.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: bc88fd23e2617229f5ea1e399a19b58a
+Size: 1958164
+Filename: python37-ptvsd_4.2.0_cortexa9-vfpv3.ipk
+Description: Remote debugging server for Python support in Visual Studio and Visual Studio Code
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-ptvsd
+Version: 4.2.4
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: bc9d5b5edc1ac7848e01f27bc14afcb2
+Size: 2165430
+Filename: python37-ptvsd_4.2.4_cortexa9-vfpv3.ipk
+Description: Remote debugging server for Python support in Visual Studio and Visual Studio Code
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-pydevd
+Version: 1.4.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: f09261fc859cb3f2beb606075ba5e7be
+Size: 1704552
+Filename: python37-pydevd_1.4.0_cortexa9-vfpv3.ipk
+Description: PyDev.Debugger (used in PyDev, PyCharm and VSCode Python)
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: a414809665c7b2c1741e138aafcaae7c
+Size: 798872
+Filename: python37-robotpy-cscore_2019.0.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.1
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 2a8c90eb0ffade31a6f0453d29943c78
+Size: 798932
+Filename: python37-robotpy-cscore_2019.0.1_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.2
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 2b61f4ddfd3f5bd5e6d3ecbc6a782dc4
+Size: 800828
+Filename: python37-robotpy-cscore_2019.0.2_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.3
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 2283ade5dc818551c2ec6fd392bc40bf
+Size: 803782
+Filename: python37-robotpy-cscore_2019.0.3_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.4
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: a6755d60c6e029371d78266d5135dd69
+Size: 804124
+Filename: python37-robotpy-cscore_2019.0.4_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.5
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 15f5308f36860fd4a59c2c4e9ef79bc6
+Size: 804120
+Filename: python37-robotpy-cscore_2019.0.5_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.0.7
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 6587cb85f95a99744988b2e6759898e2
+Size: 801314
+Filename: python37-robotpy-cscore_2019.0.7_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-cscore
+Version: 2019.1.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 56fea9e0b11fb16b03b6af0ad45432bd
+Size: 802464
+Filename: python37-robotpy-cscore_2019.1.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for cscore image processing library
+OE: unknown
+Homepage: unknown
+Depends: python37, python37-numpy, python37-opencv3 (>= 3.4)
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.0.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 926aff992df5f140e43d9090890e20a0
+Size: 248306
+Filename: python37-robotpy-ctre_2019.0.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.0.1
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: d342e1481d0fda40de5086aba9934742
+Size: 353672
+Filename: python37-robotpy-ctre_2019.0.1_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.1.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 66e2e90e688095b457eda208de747cb8
+Size: 370180
+Filename: python37-robotpy-ctre_2019.1.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.1.1
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 523d14ee0ad3ddee192a1946557c617f
+Size: 370454
+Filename: python37-robotpy-ctre_2019.1.1_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.2.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: f52ae40a289420c11d3f50cfef73c297
+Size: 372814
+Filename: python37-robotpy-ctre_2019.2.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.3.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: f3c76f566406f70f941ebe7377771043
+Size: 373698
+Filename: python37-robotpy-ctre_2019.3.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-ctre
+Version: 2019.3.2
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 7c21c6227c22e266e5fb0ab119b4bcc5
+Size: 380372
+Filename: python37-robotpy-ctre_2019.3.2_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for CTRE third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-pathfinder
+Version: 0.2.5
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 439f0f9387948ed2428ff8177ab38966
+Size: 100896
+Filename: python37-robotpy-pathfinder_0.2.5_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for Jaci R's PathFinder library
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-pathfinder
+Version: 0.2.6
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 6972ffcc9521ebe4cb226976158d9da9
+Size: 100900
+Filename: python37-robotpy-pathfinder_0.2.6_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for Jaci R's PathFinder library
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 07e56575be88efa457dac924b5fa1d09
+Size: 360816
+Filename: python37-robotpy-rev_2019.0.0_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0a1
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 38c4a15aa2b6b502d9d8ca7eb9ddd047
+Size: 318216
+Filename: python37-robotpy-rev_2019.0.0a1_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0a2
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 1c9b8b475409905c58b2c2357a259fd6
+Size: 318526
+Filename: python37-robotpy-rev_2019.0.0a2_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0a3
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: ba2c6a0b5987122057e6037dea419d1e
+Size: 318526
+Filename: python37-robotpy-rev_2019.0.0a3_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0a4
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: d2a898e14435d011a3ed0a2bc65de230
+Size: 329872
+Filename: python37-robotpy-rev_2019.0.0a4_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.0a5
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: 7569e41ba9c5e8d495fe0b8598ae9f98
+Size: 329878
+Filename: python37-robotpy-rev_2019.0.0a5_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.1
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: d0db7114f4190ad43a55e93744f217bc
+Size: 361810
+Filename: python37-robotpy-rev_2019.0.1_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-robotpy-rev
+Version: 2019.0.2
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: a0a24a6d4ff2d95dfaa684310c591988
+Size: 420456
+Filename: python37-robotpy-rev_2019.0.2_cortexa9-vfpv3.ipk
+Description: RobotPy bindings for REV third party libraries
+OE: unknown
+Homepage: unknown
+Depends: python37
+Priority: optional
+
+
+Package: python37-scipy
+Version: 1.2.0
+Section: devel
+Architecture: cortexa9-vfpv3
+Maintainer: RobotPy Developers <robotpy@googlegroups.com>
+MD5Sum: c663e2749870ec064f9038cb8f7f976a
+Size: 37871162
+Filename: python37-scipy_1.2.0_cortexa9-vfpv3.ipk
+Description: SciPy: Scientific Library for Python
+OE: unknown
+Homepage: unknown
+Depends: python37, ATLAS (>= 3.10.3), libgfortran3, python37-numpy
+Priority: optional
+
+

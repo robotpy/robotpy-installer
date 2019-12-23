@@ -1107,7 +1107,7 @@ class RobotpyInstaller(object):
             with open(file, "r") as f:
                 for row in f.readlines():
                     if not row.startswith("#"):
-                        opkgs.append(*row.split(";"))
+                        opkgs.append(row)
         return opkgs
 
     def download_opkg(self, options):

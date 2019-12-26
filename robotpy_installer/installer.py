@@ -1076,6 +1076,13 @@ class RobotpyInstaller(object):
             default=False,
             help="When upgrading, reinstall all packages even if they are already up-to-date.",
         )
+        parser.add_argument(
+            "-r",
+            "--requirement",
+            action="append",
+            default=[],
+            help="Download from the given requirements file. This option can be used multiple times.",
+        )
         parser.add_argument("--no-index", action="store_true", default=False)
 
     def install_opkg_opts(self, parser):
@@ -1083,6 +1090,22 @@ class RobotpyInstaller(object):
         parser.add_argument(
             "--ignore-image-version", action="store_true", default=False
         )
+
+    def _load_opkg_from_req(self, *files):
+        """
+            Pull the list of opkgs from the files
+        """
+        opkgs = []
+        # Loop through the passed in files to support multiple requirements files
+        for file in files:
+            with open(file, "r") as f:
+                for row in f.readlines():
+                    # Ignore commented lines and empty lines
+                    stripped = row.strip()
+                    if stripped and not stripped.startswith("#"):
+                        # Add the package to the list of packages (and remove leading and trailing whitespace)
+                        opkgs.append(stripped)
+        return opkgs
 
     def download_opkg(self, options):
         """
@@ -1095,8 +1118,12 @@ class RobotpyInstaller(object):
         opkg = self._get_opkg()
         if not options.no_index:
             opkg.update_packages()
-
-        packages = self._resolve_opkg_names(opkg, options.packages)
+        if options.requirement:
+            packages = self._resolve_opkg_names(
+                opkg, self._load_opkg_from_req(*options.requirement)
+            )
+        else:
+            packages = self._resolve_opkg_names(opkg, options.packages)
 
         package_list = opkg.resolve_pkg_deps(packages)
         for package in package_list:
@@ -1114,7 +1141,12 @@ class RobotpyInstaller(object):
         #    to only install a package if it's not already installed
         opkg_script_fname = join(self.opkg_cache, "install_opkg.sh")
         opkg_files = []
-        package_list = self._resolve_opkg_names(opkg, options.packages)
+        if options.requirement:
+            package_list = self._resolve_opkg_names(
+                opkg, self._load_opkg_from_req(*options.requirement)
+            )
+        else:
+            package_list = self._resolve_opkg_names(opkg, options.packages)
         package_list = opkg.resolve_pkg_deps(package_list)
 
         opkg_script = inspect.cleandoc(

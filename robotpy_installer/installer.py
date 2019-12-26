@@ -1101,9 +1101,10 @@ class RobotpyInstaller(object):
             with open(file, "r") as f:
                 for row in f.readlines():
                     # Ignore commented lines and empty lines
-                    if row.strip() and not row.startswith("#"):
+                    stripped = row.strip()
+                    if stripped and not stripped.startswith("#"):
                         # Add the package to the list of packages (and remove leading and trailing whitespace)
-                        opkgs.append(row.strip())
+                        opkgs.append(stripped)
         return opkgs
 
     def download_opkg(self, options):

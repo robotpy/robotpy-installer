@@ -2,5 +2,7 @@
 dist
 build
 *.egg-info
+__pycache__
 
 /robotpy_installer/win32/*.exe
+/robotpy_installer/win32/*.exe.jmd

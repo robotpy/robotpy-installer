@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 
-from setuptools import setup, find_packages
-
 import sys
+
+from setuptools import setup, find_packages
 
 if sys.version_info[0] < 3:
     sys.stderr.write("ERROR: robotpy-installer requires python 3!")
@@ -18,9 +18,6 @@ with open(installer_ns["__file__"]) as fp:
 
 __version__ = installer_ns["__version__"]
 
-# Download putty
-installer_ns["ensure_win_bins"](ignore_os=True)
-
 with open(join(dirname(__file__), "README.rst"), "r") as readme_file:
     long_description = readme_file.read()
 
@@ -33,20 +30,15 @@ setup(
     author_email="robotpy@googlegroups.com",
     url="https://github.com/robotpy/robotpy-installer",
     license="BSD",
+    install_requires=["paramiko"],
     packages=find_packages(),
-    package_data={
-        "robotpy_installer": [
-            "win32/plink.exe",
-            "win32/psftp.exe",
-            "win32/putty_license.txt",
-        ]
-    },
     classifiers=[
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: BSD License",
-        "Programming Language :: Python :: 3.5",
         "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "Topic :: Software Development",
     ],
     entry_points={

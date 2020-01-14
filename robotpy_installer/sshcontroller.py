@@ -1,7 +1,8 @@
 import configparser
 import logging
 import re
-from os.path import exists, join, expanduser
+import os
+from os.path import exists, join, expanduser, split as splitpath
 
 import paramiko
 
@@ -59,6 +60,33 @@ class SshController(object):
 
         if not existing_connection:
             self.ssh_close_connection()
+
+    def sftp(self, local_path, remote_path, mkdir=True):
+        # from https://gist.github.com/johnfink8/2190472
+        oldcwd = os.getcwd()
+        sftp = self.client.open_sftp()
+        try:
+            parent, child = splitpath(local_path)
+            os.chdir(parent)
+            for d, _, files in os.walk(child):
+                print(d)
+                try:
+                    print("make", os.path.join(remote_path, d))
+                    if not mkdir:
+                        # skip first mkdir
+                        mkdir = True
+                    else:
+                        sftp.mkdir(os.path.join(remote_path, d))
+                except:
+                    raise
+                for fname in files:
+                    print(join(d, fname), "->", join(remote_path, d, fname))
+                    sftp.put(
+                        join(d, fname), join(remote_path, d, fname),
+                    )
+        finally:
+            os.chdir(oldcwd)
+            sftp.close()
 
 
 def ssh_from_cfg(cfg_filename, username, password, hostname=None, no_resolve=False):

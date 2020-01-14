@@ -4,7 +4,7 @@ sudo: required
 dist: xenial
 
 python:
-- "3.7"
+- "3.8"
 
 matrix:
   fast_finish: true
@@ -20,7 +20,7 @@ jobs:
   include:
   - stage: format-check
     python:
-    - "3.6"
+    - "3.8"
     install:
     - pip install black
     script:
@@ -30,6 +30,7 @@ deploy:
 - provider: pypi
   user: $PYPI_USERNAME
   password: $PYPI_PASSWORD
+  distributions: sdist bdist_wheel
   on:
     tags: true
 

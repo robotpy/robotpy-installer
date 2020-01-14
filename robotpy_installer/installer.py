@@ -25,13 +25,13 @@ from robotpy_installer.opkgrepo import OpkgRepo
 from robotpy_installer.sshcontroller import ssh_from_cfg
 
 _FEEDS = [
-    "https://www.tortall.net/~robotpy/feeds/2019",
-    "http://download.ni.com/ni-linux-rt/feeds/2018/arm/cortexa9-vfpv3",
+    "https://www.tortall.net/~robotpy/feeds/2020",
+    "https://download.ni.com/ni-linux-rt/feeds/2019/arm/cortexa9-vfpv3",
 ]
 
-_ROBORIO_IMAGES = ["2019_v14"]
+_ROBORIO_IMAGES = ["2020_v10"]
 
-_ROBOTPY_PYTHON_VERSION = "python37"
+_ROBOTPY_PYTHON_VERSION = "python38"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -147,11 +147,11 @@ class RobotpyInstaller(object):
     def _create_rpy_pip_options(self, options):
         # Construct an appropriate line to install
         options.requirement = []
-        options.packages = ["wpilib", "robotpy-hal-base", "robotpy-hal-roborio"]
+        options.packages = ["pynetworktables"]
 
         options.force_reinstall = False
         options.ignore_installed = False
-        options.no_deps = False
+        options.no_deps = True
 
         if options.basever is not None:
             options.packages = [
@@ -166,7 +166,10 @@ class RobotpyInstaller(object):
     def _create_rpy_opkg_options(self, options):
         # Construct an appropriate line to install
         options.requirement = []
-        options.packages = [_ROBOTPY_PYTHON_VERSION]
+        options.packages = [
+            _ROBOTPY_PYTHON_VERSION,
+            _ROBOTPY_PYTHON_VERSION + "-wpilib",
+        ]
         options.upgrade = True
 
         options.force_reinstall = False

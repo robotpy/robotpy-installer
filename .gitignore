@@ -3,6 +3,6 @@ dist
 build
 *.egg-info
 __pycache__
+.vscode
 
-/robotpy_installer/win32/*.exe
-/robotpy_installer/win32/*.exe.jmd
+/robotpy_installer/version.py

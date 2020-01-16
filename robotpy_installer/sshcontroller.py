@@ -3,6 +3,7 @@ import logging
 import re
 import os
 from os.path import exists, join, expanduser, split as splitpath
+from pathlib import PurePath, PurePosixPath
 
 import paramiko
 
@@ -66,24 +67,26 @@ class SshController(object):
         oldcwd = os.getcwd()
         sftp = self.client.open_sftp()
         try:
+            remote_path = PurePosixPath(remote_path)
             parent, child = splitpath(local_path)
             os.chdir(parent)
             for d, _, files in os.walk(child):
-                print(d)
+                d = PurePath(d)
                 try:
-                    print("make", os.path.join(remote_path, d))
+                    remote_dir = remote_path / d
+                    print("make", remote_dir)
                     if not mkdir:
                         # skip first mkdir
                         mkdir = True
                     else:
-                        sftp.mkdir(os.path.join(remote_path, d))
+                        sftp.mkdir(str(remote_dir))
                 except:
                     raise
                 for fname in files:
-                    print(join(d, fname), "->", join(remote_path, d, fname))
-                    sftp.put(
-                        join(d, fname), join(remote_path, d, fname),
-                    )
+                    local_fname = d / fname
+                    remote_fname = remote_dir / fname
+                    print(local_fname.relative_to(child), "->", remote_fname)
+                    sftp.put(str(local_fname), str(remote_fname))
         finally:
             os.chdir(oldcwd)
             sftp.close()

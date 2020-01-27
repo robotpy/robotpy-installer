@@ -35,7 +35,11 @@ class SshController(object):
 
     def ssh_connect(self):
         self.client.connect(
-            self.hostname, username=self.username, password=self.password, port=22
+            self.hostname,
+            username=self.username,
+            password=self.password,
+            allow_agent=False,
+            look_for_keys=False,
         )
 
     def ssh_close_connection(self):

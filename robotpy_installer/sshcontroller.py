@@ -56,7 +56,7 @@ class SshController(object):
             print(line, end="")
         for line in iter(stderr.readLine, ""):
             # Print stderr, using red color to help distinguish
-            print('\033[91m' + line + '\033[0m', end="")
+            print("\033[91m" + line + "\033[0m", end="")
 
         retval = stdout.channel.recv_exit_status()
 

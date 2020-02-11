@@ -50,10 +50,13 @@ class SshController(object):
         if not existing_connection:
             self.ssh_connect()
 
-        _, stdout, _ = self.client.exec_command(commands)
+        _, stdout, stderr = self.client.exec_command(commands)
 
         for line in iter(stdout.readline, ""):
             print(line, end="")
+        for line in iter(stderr.readLine, ""):
+            # Print stderr, using red color to help distinguish
+            print("\033[91m" + line + "\033[0m", end="")
 
         retval = stdout.channel.recv_exit_status()
 

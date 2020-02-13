@@ -46,16 +46,18 @@ class SshController(object):
         self.client.close()
 
     def ssh_exec_commands(self, commands, existing_connection=False):
-
         if not existing_connection:
             self.ssh_connect()
 
-        _, stdout, _ = self.client.exec_command(commands)
+        with self.client.get_transport().open_session() as channel:
+            channel.set_combine_stderr(True)
+            channel.exec_command(commands)
 
-        for line in iter(stdout.readline, ""):
-            print(line, end="")
+            with channel.makefile("r") as stdout:
+                for line in stdout:
+                    print(line, end="")
 
-        retval = stdout.channel.recv_exit_status()
+            retval = channel.recv_exit_status()
 
         if retval != 0:
             raise SshExecError(

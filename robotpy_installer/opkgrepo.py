@@ -136,7 +136,7 @@ class OpkgRepo(object):
 
     def resolve_pkg_deps(self, packages):
         """Given a list of package(s) desired to be installed, topologically
-           sorts them by dependencies and returns an ordered list of packages"""
+        sorts them by dependencies and returns an ordered list of packages"""
 
         pkgs = {}
         packages = packages[:]

@@ -38,7 +38,7 @@ logger = logging.getLogger("robotpy.installer")
 
 class RobotpyInstaller(object):
     """
-        Logic for installing RobotPy
+    Logic for installing RobotPy
     """
 
     # opkg feed
@@ -200,9 +200,9 @@ class RobotpyInstaller(object):
 
     def install_robotpy(self, options):
         """
-            This will copy the appropriate RobotPy components to the robot, and install
-            them. If the components are already installed on the robot, then they will
-            be reinstalled.
+        This will copy the appropriate RobotPy components to the robot, and install
+        them. If the components are already installed on the robot, then they will
+        be reinstalled.
         """
         opkg_options = self._create_rpy_opkg_options(options)
         self.install_opkg(opkg_options)
@@ -221,7 +221,7 @@ class RobotpyInstaller(object):
 
     def download_robotpy(self, options):
         """
-            This will update the cached RobotPy packages to the newest versions available.
+        This will update the cached RobotPy packages to the newest versions available.
         """
 
         self.download_opkg(self._create_rpy_opkg_options(options))
@@ -257,7 +257,7 @@ class RobotpyInstaller(object):
 
     def _load_opkg_from_req(self, *files):
         """
-            Pull the list of opkgs from the files
+        Pull the list of opkgs from the files
         """
         opkgs = []
         # Loop through the passed in files to support multiple requirements files
@@ -273,7 +273,7 @@ class RobotpyInstaller(object):
 
     def download_opkg(self, options):
         """
-            Specify opkg package(s) to download, and store them in the cache
+        Specify opkg package(s) to download, and store them in the cache
         """
 
         opkg = self._get_opkg()
@@ -494,7 +494,7 @@ class RobotpyInstaller(object):
 
     def download_pip(self, options):
         """
-            Specify python package(s) to download, and store them in the cache
+        Specify python package(s) to download, and store them in the cache
         """
 
         try:
@@ -547,9 +547,9 @@ class RobotpyInstaller(object):
 
     def install_pip(self, options):
         """
-            Copies python packages over to the roboRIO, and installs them. If the
-            package already has been installed, it will not be upgraded. Use -U to
-            upgrade a package.
+        Copies python packages over to the roboRIO, and installs them. If the
+        package already has been installed, it will not be upgraded. Use -U to
+        upgrade a package.
         """
 
         if len(options.requirement) == 0 and len(options.packages) == 0:

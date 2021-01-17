@@ -21,8 +21,8 @@ class SuppressKeyPolicy(paramiko.MissingHostKeyPolicy):
 
 class SshController(object):
     """
-        Use this to execute commands on a roboRIO in a
-        cross platform manner
+    Use this to execute commands on a roboRIO in a
+    cross platform manner
     """
 
     def __init__(self, hostname, username, password):

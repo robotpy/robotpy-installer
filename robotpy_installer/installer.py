@@ -11,12 +11,12 @@
 import argparse
 import inspect
 import logging
-import os
+import pathlib
 import subprocess
 import sys
 import threading
 from distutils.version import LooseVersion
-from os.path import abspath, basename, dirname, exists, join
+from os.path import basename
 
 from robotpy_installer import __version__
 from robotpy_installer.cacheserver import CacheServer
@@ -32,6 +32,8 @@ _FEEDS = [
 _ROBORIO_IMAGES = ["2020_v10"]
 
 _ROBOTPY_PYTHON_VERSION = "python38"
+
+_WPILIB_YEAR = "2020"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -57,17 +59,15 @@ class RobotpyInstaller(object):
         "search-opkg",
     ]
 
-    def __init__(self, cache_root):
+    def __init__(self, cache_root: pathlib.Path, cfgroot: pathlib.Path):
 
         self.cache_root = cache_root
+        self.pip_cache = cache_root / "pip_cache"
+        self.opkg_cache = cache_root / "opkg_cache"
 
-        self.cfg_filename = abspath(join(cache_root, ".installer_config"))
+        self.cfg_filename = cfgroot / ".installer_config"
 
-        self.pip_cache = abspath(join(cache_root, "pip_cache"))
-        self.opkg_cache = abspath(join(cache_root, "opkg_cache"))
-
-        if not exists(self.pip_cache):
-            os.makedirs(self.pip_cache)
+        self.pip_cache.mkdir(parents=True, exist_ok=True)
 
         self._ctrl = None
         self._hostname = None
@@ -598,23 +598,10 @@ def main(args=None):
 
     logging.basicConfig(datefmt=log_datefmt, format=log_format, level=logging.INFO)
 
-    # Because this is included with the RobotPy download package, there
-    # are two ways to use this:
-    #
-    # * If there are directories 'pip_cache' and 'opkg_cache' next to this file,
-    #   then use that
-    # * Otherwise, use the current working directory
-    #
+    cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
+    cfg_root = pathlib.Path.cwd()
 
-    cache_root = abspath(join(dirname(__file__)))
-    if not exists(join(cache_root, "pip_cache")):
-        cache_root = os.getcwd()
-
-    try:
-        installer = RobotpyInstaller(cache_root)
-    except Error as e:
-        print("ERROR: %s" % e)
-        return 1
+    installer = RobotpyInstaller(cache_root, cfg_root)
 
     # argparse boilerplate...
     parser = argparse.ArgumentParser()

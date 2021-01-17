@@ -24,16 +24,26 @@ from robotpy_installer.errors import SshExecError, ArgError, Error, OpkgError
 from robotpy_installer.opkgrepo import OpkgRepo
 from robotpy_installer.sshcontroller import ssh_from_cfg
 
+_WPILIB_YEAR = "2021"
+
 _FEEDS = [
-    "https://www.tortall.net/~robotpy/feeds/2020",
+    f"https://www.tortall.net/~robotpy/feeds/{_WPILIB_YEAR}",
     "https://download.ni.com/ni-linux-rt/feeds/2019/arm/cortexa9-vfpv3",
 ]
 
-_ROBORIO_IMAGES = ["2020_v10"]
+_ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
-_ROBOTPY_PYTHON_VERSION = "python38"
+_ROBORIO_IMAGES = [
+    "2020_v10",
+    "2021_v1",
+    "2021_v2",
+    "2021_v3.0",
+    "2021_v3.1",
+]
 
-_WPILIB_YEAR = "2020"
+_ROBOTPY_PYTHON_VERSION_NUM = "39"
+_ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
+
 
 logger = logging.getLogger("robotpy.installer")
 

@@ -1,9 +1,11 @@
 import configparser
+import io
 import logging
 import re
 import os
 from os.path import exists, join, expanduser, split as splitpath
 from pathlib import PurePath, PurePosixPath
+import typing
 
 import paramiko
 
@@ -19,10 +21,20 @@ class SuppressKeyPolicy(paramiko.MissingHostKeyPolicy):
         return
 
 
+class SshExecResult(typing.NamedTuple):
+    returncode: int
+    stdout: typing.Optional[str]
+
+
 class SshController(object):
     """
-    Use this to execute commands on a roboRIO in a
-    cross platform manner
+    Use this to execute commands on a roboRIO in a cross platform manner
+
+    ::
+
+        with SshController(hostname, username, password) as controller:
+            controller.exec_cmd("cat /etc/lsb-release", print_output=True)
+
     """
 
     def __init__(self, hostname, username, password):
@@ -33,7 +45,7 @@ class SshController(object):
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(SuppressKeyPolicy)
 
-    def ssh_connect(self):
+    def __enter__(self):
         self.client.connect(
             self.hostname,
             username=self.username,
@@ -41,32 +53,45 @@ class SshController(object):
             allow_agent=False,
             look_for_keys=False,
         )
+        return self
 
-    def ssh_close_connection(self):
+    def __exit__(self, *args):
         self.client.close()
 
-    def ssh_exec_commands(self, commands, existing_connection=False):
-        if not existing_connection:
-            self.ssh_connect()
+    def exec_cmd(
+        self,
+        cmd: str,
+        *,
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+    ) -> SshExecResult:
+
+        output = None
+        buffer = io.StringIO()
 
         with self.client.get_transport().open_session() as channel:
             channel.set_combine_stderr(True)
-            channel.exec_command(commands)
+            channel.exec_command(cmd)
 
             with channel.makefile("r") as stdout:
                 for line in stdout:
-                    print(line, end="")
+                    if get_output:
+                        buffer.write(line)
+                    if print_output:
+                        print(line, end="")
 
             retval = channel.recv_exit_status()
 
-        if retval != 0:
+        if check and retval != 0:
             raise SshExecError(
-                "Command %s returned non-zero error status %s" % (commands, retval),
+                "Command '%s' returned non-zero error status %s" % (cmd, retval),
                 retval,
             )
+        elif get_output:
+            output = buffer.getvalue()
 
-        if not existing_connection:
-            self.ssh_close_connection()
+        return SshExecResult(retval, output)
 
     def sftp(self, local_path, remote_path, mkdir=True):
         # from https://gist.github.com/johnfink8/2190472
@@ -98,7 +123,13 @@ class SshController(object):
             sftp.close()
 
 
-def ssh_from_cfg(cfg_filename, username, password, hostname=None, no_resolve=False):
+def ssh_from_cfg(
+    cfg_filename: str,
+    username: str,
+    password: str,
+    hostname: typing.Optional[str] = None,
+    no_resolve=False,
+):
     # hostname can be a team number or an ip / hostname
 
     dirty = True

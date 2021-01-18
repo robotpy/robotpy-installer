@@ -58,7 +58,7 @@ setup(
     author_email="robotpy@googlegroups.com",
     url="https://github.com/robotpy/robotpy-installer",
     license="BSD",
-    install_requires=["paramiko"],
+    install_requires=["click", "paramiko"],
     packages=find_packages(),
     requires_python=">=3.6",
     classifiers=[
@@ -68,6 +68,7 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
         "Topic :: Software Development",
     ],
     entry_points={

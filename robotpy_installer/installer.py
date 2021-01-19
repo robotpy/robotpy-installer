@@ -104,6 +104,32 @@ def catch_ssh_error(msg: str):
         raise ClickException(f"{msg}: {e}")
 
 
+def remove_legacy_components(ssh: SshController):
+
+    # (remove in 2022) check for old robotpy components
+    # -> only removes opkg components, pip will take care of the rest
+
+    with catch_ssh_error("check for old RobotPy"):
+        result = ssh.exec_cmd(
+            "opkg list-installed python38*", get_output=True
+        ).stdout.strip()
+
+    if result != "":
+        packages = [line.split()[0] for line in result.splitlines()]
+
+        print("RobotPy 2020 components detected!")
+        for package in packages:
+            print("-", package)
+
+        if not click.confirm("Uninstall?"):
+            raise ClickException("installer cannot continue")
+
+        with catch_ssh_error("uninstall old RobotPy"):
+            result = ssh.exec_cmd(
+                f"opkg remove {' '.join(packages)}", print_output=True
+            )
+
+
 def roborio_checks(
     ssh: SshController,
     ignore_image_version: bool,
@@ -140,6 +166,13 @@ def roborio_checks(
 
     _, size, used, _, pct, _ = result.stdout.strip().split()
     logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
+
+    # Remove in 2022
+    remove_legacy_components(ssh)
+
+    #
+    # Ensure that pip is installed
+    #
 
     if pip_check:
         with catch_ssh_error("checking for pip3"):

@@ -14,7 +14,7 @@ from click import argument, option, group, pass_context, pass_obj, ClickExceptio
 from distutils.version import LooseVersion
 from os.path import basename
 
-from .version import __version__
+from .version import version as __version__
 from .cacheserver import CacheServer
 from .errors import Error, SshExecError, OpkgError
 from .opkgrepo import OpkgRepo

@@ -4,6 +4,7 @@ from collections import OrderedDict
 from distutils.version import LooseVersion
 from functools import reduce as _reduce
 from os.path import exists, join, basename
+import typing
 
 from robotpy_installer.errors import OpkgError
 from robotpy_installer.utils import _urlretrieve, md5sum
@@ -125,21 +126,19 @@ class OpkgRepo(object):
         fname = self._get_pkg_fname(pkg)
 
         if not exists(fname):
-            raise OpkgError(
-                "Package '%s' has not been downloaded into the cache" % name
-            )
+            raise OpkgError("Package '%s' has not been downloaded" % name)
 
         if not md5sum(fname) == pkg["MD5Sum"]:
-            raise OpkgError("Cached package for %s md5sum does not match" % name)
+            raise OpkgError("md5sum of package '%s' md5sum does not match" % name)
 
         return pkg, fname
 
     def resolve_pkg_deps(self, packages):
         """Given a list of package(s) desired to be installed, topologically
-           sorts them by dependencies and returns an ordered list of packages"""
+        sorts them by dependencies and returns an ordered list of packages"""
 
         pkgs = {}
-        packages = packages[:]
+        packages = list(packages)
 
         for pkg in packages:
             if pkg in pkgs:
@@ -221,3 +220,19 @@ class OpkgRepo(object):
             raise OpkgError("Downloaded package for %s md5sum does not match" % name)
 
         return fname
+
+    def load_opkg_from_req(self, *files: typing.List[str]) -> typing.List[str]:
+        """
+        Pull the list of opkgs from a requirements.txt-like file
+        """
+        opkgs = []
+        # Loop through the passed in files to support multiple requirements files
+        for file in files:
+            with open(file, "r") as f:
+                for row in f:
+                    # Ignore commented lines and empty lines
+                    stripped = row.strip()
+                    if stripped and not stripped.startswith("#"):
+                        # Add the package to the list of packages (and remove leading and trailing whitespace)
+                        opkgs.append(stripped)
+        return opkgs

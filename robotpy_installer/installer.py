@@ -2,6 +2,7 @@ import contextlib
 import inspect
 import logging
 import pathlib
+import platform
 import re
 import shutil
 import subprocess
@@ -627,7 +628,7 @@ def download(
     )
 
     pip_args.extend(packages)
-    pip_args = [sys.executable, "-m", "pip"] + pip_args
+    pip_args = [sys.executable, "-m", "robotpy_installer._pipstub"] + pip_args
 
     logger.debug("Using pip to download: %s", pip_args)
 

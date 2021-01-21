@@ -620,7 +620,7 @@ def download(
         "--abi",
         f"cp{_ROBOTPY_PYTHON_VERSION_NUM}",
         "-d",
-        installer.pip_cache,
+        str(installer.pip_cache),
     ]
 
     _extend_pip_args(

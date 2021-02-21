@@ -700,6 +700,10 @@ def pip_install(
         with catch_ssh_error("installing packages"):
             ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
 
+        # Some of our hacky wheels require this
+        with catch_ssh_error("running ldconfig"):
+            ssh.exec_cmd("ldconfig")
+
 
 @installer.command(name="list")
 @_common_ssh_options

@@ -124,7 +124,7 @@ class SshController(object):
 
 
 def ssh_from_cfg(
-    cfg_filename: str,
+    cfg_filename: typing.Union[str, os.PathLike],
     username: str,
     password: str,
     hostname: typing.Optional[str] = None,

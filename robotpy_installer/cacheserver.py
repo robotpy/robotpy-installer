@@ -2,6 +2,7 @@ import logging
 import pathlib
 import threading
 from http.server import SimpleHTTPRequestHandler
+from typing import Dict
 
 from robotpy_installer.sshcontroller import SshController
 
@@ -34,9 +35,9 @@ class CacheServer:
         self.transport = self.controller.client.get_transport()
         self.port = self.transport.request_port_forward("", 0)
 
-        self.mapped_files = {}
+        self.mapped_files: Dict[str, str] = {}
 
-    def add_mapping(self, fname: str, local_file: pathlib.Path):
+    def add_mapping(self, fname: str, local_file: str):
         self.mapped_files[fname] = local_file
 
     def start(self):

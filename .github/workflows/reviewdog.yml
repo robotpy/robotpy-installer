@@ -1,0 +1,17 @@
+---
+name: reviewdog
+
+on: [push, pull_request]
+
+jobs:
+  mypy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-python@v2
+      - run: pip install -e .
+      - uses: tsuyoshicho/action-mypy@v3
+        with:
+          reporter: github-check
+          target: robotpy_installer

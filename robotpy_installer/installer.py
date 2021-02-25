@@ -110,9 +110,7 @@ def remove_legacy_components(ssh: SshController):
     # -> only removes opkg components, pip will take care of the rest
 
     with catch_ssh_error("check for old RobotPy"):
-        result = ssh.exec_cmd(
-            "opkg list-installed python38*", get_output=True
-        ).stdout.strip()
+        result = ssh.check_output("opkg list-installed python38*").strip()
 
     if result != "":
         packages = [line.split()[0] for line in result.splitlines()]
@@ -125,9 +123,7 @@ def remove_legacy_components(ssh: SshController):
             raise ClickException("installer cannot continue")
 
         with catch_ssh_error("uninstall old RobotPy"):
-            result = ssh.exec_cmd(
-                f"opkg remove {' '.join(packages)}", print_output=True
-            )
+            ssh.exec_cmd(f"opkg remove {' '.join(packages)}", print_output=True)
 
 
 def roborio_checks(
@@ -141,12 +137,11 @@ def roborio_checks(
     #
 
     with catch_ssh_error("retrieving image version"):
-        result = ssh.exec_cmd(
+        result = ssh.check_output(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
-            get_output=True,
         )
 
-    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.stdout.strip())
+    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
     version = m.group(1) if m else "<unknown>"
 
     logger.info("-> RoboRIO image version %s", version)
@@ -162,9 +157,9 @@ def roborio_checks(
     #
 
     with catch_ssh_error("checking free space"):
-        result = ssh.exec_cmd("df -h / | tail -n 1", get_output=True)
+        result = ssh.check_output("df -h / | tail -n 1")
 
-    _, size, used, _, pct, _ = result.stdout.strip().split()
+    _, size, used, _, pct, _ = result.strip().split()
     logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
 
     # Remove in 2022

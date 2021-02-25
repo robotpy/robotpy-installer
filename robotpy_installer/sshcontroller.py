@@ -93,6 +93,16 @@ class SshController(object):
 
         return SshExecResult(retval, output)
 
+    def check_output(self, cmd: str, *, print_output: bool = False) -> str:
+        result = self.exec_cmd(
+            cmd,
+            check=True,
+            get_output=True,
+            print_output=print_output,
+        )
+        assert result.stdout is not None
+        return result.stdout
+
     def sftp(self, local_path, remote_path, mkdir=True):
         # from https://gist.github.com/johnfink8/2190472
         oldcwd = os.getcwd()

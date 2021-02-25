@@ -73,7 +73,7 @@ class RobotpyInstaller:
             opkg.update_packages()
 
         for feed in opkg.feeds:
-            for _, pkgdata in feed["pkgs"].items():
+            for _, pkgdata in feed.pkgs.items():
                 for pkg in pkgdata:
                     yield pkg
 

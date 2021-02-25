@@ -1,10 +1,11 @@
 import os
 import string
 from collections import OrderedDict
+from dataclasses import dataclass
 from distutils.version import LooseVersion
 from functools import reduce as _reduce
 from os.path import exists, join, basename
-from typing import Dict, Iterable, List, Set, Sequence, Tuple, TypedDict
+from typing import Dict, Iterable, List, Set, Sequence, Tuple
 
 from robotpy_installer.errors import OpkgError
 from robotpy_installer.utils import _urlretrieve, md5sum
@@ -12,7 +13,8 @@ from robotpy_installer.utils import _urlretrieve, md5sum
 Package = OrderedDict
 
 
-class Feed(TypedDict):
+@dataclass
+class Feed:
     url: str
     db_fname: str
     pkgs: Dict[str, List[Package]]
@@ -40,29 +42,29 @@ class OpkgRepo(object):
         valid_chars = "-_.() %s%s" % (string.ascii_letters, string.digits)
         safe_url = "".join(c for c in url if c in valid_chars)
         safe_url = safe_url.replace(" ", "_")
-        feed: Feed = {
-            "url": url,
-            "db_fname": join(self.pkg_dbs, safe_url),
-            "pkgs": OrderedDict(),
-            "loaded": False,
-        }
-        if exists(feed["db_fname"]):
+        feed = Feed(
+            url,
+            db_fname=join(self.pkg_dbs, safe_url),
+            pkgs=OrderedDict(),
+            loaded=False,
+        )
+        if exists(feed.db_fname):
             self.load_package_db(feed)
-            feed["loaded"] = True
+            feed.loaded = True
 
         self.feeds.append(feed)
 
     def update_packages(self) -> None:
         for feed in self.feeds:
-            pkgurl = feed["url"] + "/Packages"
-            _urlretrieve(pkgurl, feed["db_fname"], True, self.ssl_context)
+            pkgurl = feed.url + "/Packages"
+            _urlretrieve(pkgurl, feed.db_fname, True, self.ssl_context)
             self.load_package_db(feed)
 
     def load_package_db(self, feed: Feed) -> None:
 
         # dictionary of lists of packages sorted by version
         pkg: Package = OrderedDict()
-        with open(feed["db_fname"], "r", encoding="utf-8") as fp:
+        with open(feed.db_fname, "r", encoding="utf-8") as fp:
             for line in fp.readlines():
                 line = line.strip()
                 if len(line) == 0:
@@ -79,7 +81,7 @@ class OpkgRepo(object):
         self._add_pkg(pkg, feed)
 
         # Finally, make sure all the packages are sorted by version
-        for pkglist in feed["pkgs"].values():
+        for pkglist in feed.pkgs.values():
             pkglist.sort(key=lambda p: p["Version"])
 
     def _add_pkg(self, pkg: Package, feed: Feed) -> None:
@@ -87,10 +89,10 @@ class OpkgRepo(object):
             return
         # Add download url and fname
         if "Filename" in pkg:
-            pkg["url"] = "/".join((feed["url"], pkg["Filename"]))
+            pkg["url"] = "/".join((feed.url, pkg["Filename"]))
 
         # Only retain one version of a package
-        pkgs = feed["pkgs"].setdefault(pkg["Package"], [])
+        pkgs = feed.pkgs.setdefault(pkg["Package"], [])
         for old_pkg in pkgs:
             if old_pkg["Version"] == pkg["Version"]:
                 old_pkg.clear()
@@ -102,9 +104,9 @@ class OpkgRepo(object):
     def get_pkginfo(self, name: str):
         loaded = False
         for feed in self.feeds:
-            loaded = loaded or feed["loaded"]
-            if name in feed["pkgs"]:
-                return feed["pkgs"][name][-1]
+            loaded = loaded or feed.loaded
+            if name in feed.pkgs:
+                return feed.pkgs[name][-1]
 
         if loaded:
             msg = "Package %s is not in the package list (did you misspell it?)" % name

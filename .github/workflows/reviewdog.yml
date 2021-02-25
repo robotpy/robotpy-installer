@@ -5,6 +5,7 @@ on: [push, pull_request]
 
 jobs:
   mypy:
+    name: runner / mypy
     runs-on: ubuntu-latest
 
     steps:
@@ -15,3 +16,4 @@ jobs:
         with:
           reporter: github-check
           target: robotpy_installer
+          mypy_flags: --ignore-missing-imports

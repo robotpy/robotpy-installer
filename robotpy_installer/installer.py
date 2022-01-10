@@ -62,14 +62,14 @@ class RobotpyInstaller:
         logger.info("RobotPy Installer %s", __version__)
         logger.info("-> caching files at %s", self.cache_root)
 
-    def get_opkg(self):
-        opkg = OpkgRepo(self.opkg_cache, _OPKG_ARCH)
+    def get_opkg(self, ssl_context):
+        opkg = OpkgRepo(self.opkg_cache, _OPKG_ARCH, ssl_context)
         for feed in _OPKG_FEEDS:
             opkg.add_feed(feed)
         return opkg
 
-    def get_opkg_packages(self, no_index: bool):
-        opkg = self.get_opkg()
+    def get_opkg_packages(self, no_index: bool, ssl_context):
+        opkg = self.get_opkg(ssl_context)
         if not no_index:
             opkg.update_packages()
 
@@ -194,6 +194,16 @@ def roborio_checks(
 #
 
 
+def _make_ssl_context(use_certifi: bool):
+    if not use_certifi:
+        return None
+
+    import certifi
+    import ssl
+
+    return ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())
+
+
 @group()
 @pass_context
 def installer(ctx: click.Context):
@@ -261,6 +271,7 @@ def opkg():
 
 @opkg.command(name="download")
 @option("--no-index", is_flag=True, help="Only examine local cache")
+@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
 @option(
     "-r",
     "--requirements",
@@ -274,6 +285,7 @@ def opkg():
 def opkg_download(
     installer: RobotpyInstaller,
     no_index: bool,
+    use_certifi: bool,
     requirements: typing.Tuple[str],
     packages: typing.Tuple[str],
 ):
@@ -284,7 +296,7 @@ def opkg_download(
     installer.log_startup()
 
     try:
-        opkg = installer.get_opkg()
+        opkg = installer.get_opkg(_make_ssl_context(use_certifi))
         if not no_index:
             opkg.update_packages()
 
@@ -333,7 +345,7 @@ def opkg_install(
 
     installer.log_startup()
 
-    opkg = installer.get_opkg()
+    opkg = installer.get_opkg(None)
 
     # Write out the install script
     # -> we use a script because opkg doesn't have a good mechanism
@@ -422,14 +434,15 @@ def opkg_install(
 
 @opkg.command(name="list")
 @option("--no-index", is_flag=True, help="Only examine local cache")
+@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
 @pass_obj
-def opkg_list(installer: RobotpyInstaller, no_index: bool):
+def opkg_list(installer: RobotpyInstaller, no_index: bool, use_certifi: bool):
     """
     List all packages in opkg database
     """
 
     data = set()
-    for pkg in installer.get_opkg_packages(no_index):
+    for pkg in installer.get_opkg_packages(no_index, _make_ssl_context(use_certifi)):
         data.add("%(Package)s - %(Version)s" % pkg)
 
     for v in sorted(data):
@@ -438,16 +451,19 @@ def opkg_list(installer: RobotpyInstaller, no_index: bool):
 
 @opkg.command(name="search")
 @option("--no-index", is_flag=True, help="Only examine local cache")
+@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
 @argument("search")
 @pass_obj
-def opkg_search(installer: RobotpyInstaller, no_index: bool, search: str):
+def opkg_search(
+    installer: RobotpyInstaller, no_index: bool, use_certifi: bool, search: str
+):
     """
     Search opkg database for packages
     """
 
     # TODO: make this more intelligent...
     data = set()
-    for pkg in installer.get_opkg_packages(no_index):
+    for pkg in installer.get_opkg_packages(no_index, _make_ssl_context(use_certifi)):
         if search in pkg["Package"] or search in pkg.get("Description", ""):
             data.add("%(Package)s - %(Version)s" % pkg)
     for v in sorted(data):
@@ -481,12 +497,15 @@ def opkg_uninstall(
 
 
 @installer.command()
+@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
 @pass_context
-def download_python(ctx: click.Context):
+def download_python(ctx: click.Context, use_certifi: bool):
     """
     Downloads Python to a folder to be installed
     """
-    ctx.forward(opkg_download, packages=[_ROBOTPY_PYTHON_VERSION])
+    ctx.forward(
+        opkg_download, packages=[_ROBOTPY_PYTHON_VERSION], use_certifi=use_certifi
+    )
 
 
 @installer.command()

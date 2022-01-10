@@ -15,10 +15,11 @@ class OpkgRepo(object):
 
     sys_packages = ["libc6"]
 
-    def __init__(self, opkg_cache, arch):
+    def __init__(self, opkg_cache, arch, ssl_context):
         self.feeds = []
         self.opkg_cache = opkg_cache
         self.arch = arch
+        self.ssl_context = ssl_context
         if not exists(self.opkg_cache):
             os.makedirs(self.opkg_cache)
         self.pkg_dbs = join(self.opkg_cache, "Packages")
@@ -45,7 +46,7 @@ class OpkgRepo(object):
     def update_packages(self):
         for feed in self.feeds:
             pkgurl = feed["url"] + "/Packages"
-            _urlretrieve(pkgurl, feed["db_fname"], True)
+            _urlretrieve(pkgurl, feed["db_fname"], True, self.ssl_context)
             self.load_package_db(feed)
 
     def load_package_db(self, feed):
@@ -214,7 +215,7 @@ class OpkgRepo(object):
 
         # Only download it if necessary
         if not exists(fname) or not md5sum(fname) == pkg["MD5Sum"]:
-            _urlretrieve(pkg["url"], fname, True)
+            _urlretrieve(pkg["url"], fname, True, self.ssl_context)
         # Validate it
         if md5sum(fname) != pkg["MD5Sum"]:
             raise OpkgError("Downloaded package for %s md5sum does not match" % name)

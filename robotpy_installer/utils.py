@@ -25,7 +25,7 @@ def md5sum(fname):
     return md5.hexdigest()
 
 
-def _urlretrieve(url, fname, cache):
+def _urlretrieve(url, fname, cache, ssl_context):
     # Get it
     print("Downloading", url)
 

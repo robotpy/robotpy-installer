@@ -67,7 +67,9 @@ def _urlretrieve(url, fname, cache, ssl_context):
 
         req = urllib.request.Request(url, headers=headers)
 
-        with contextlib.closing(urllib.request.urlopen(req)) as rfp:
+        with contextlib.closing(
+            urllib.request.urlopen(req, context=ssl_context)
+        ) as rfp:
             headers = rfp.info()
 
             with open(fname, "wb") as fp:

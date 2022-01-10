@@ -198,7 +198,13 @@ def _make_ssl_context(use_certifi: bool):
     if not use_certifi:
         return None
 
-    import certifi
+    try:
+        import certifi
+    except ImportError:
+        raise click.ClickException(
+            "certifi is not installed, please install it via `pip install certifi`"
+        )
+
     import ssl
 
     return ssl.create_default_context(ssl.Purpose.SERVER_AUTH, cafile=certifi.where())

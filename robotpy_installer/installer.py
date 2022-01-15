@@ -2,7 +2,6 @@ import contextlib
 import inspect
 import logging
 import pathlib
-import platform
 import re
 import shutil
 import subprocess
@@ -58,11 +57,11 @@ class RobotpyInstaller:
 
         self.cfg_filename = cfgroot / ".installer_config"
 
-    def log_startup(self):
+    def log_startup(self) -> None:
         logger.info("RobotPy Installer %s", __version__)
         logger.info("-> caching files at %s", self.cache_root)
 
-    def get_opkg(self, ssl_context):
+    def get_opkg(self, ssl_context) -> OpkgRepo:
         opkg = OpkgRepo(self.opkg_cache, _OPKG_ARCH, ssl_context)
         for feed in _OPKG_FEEDS:
             opkg.add_feed(feed)
@@ -74,7 +73,7 @@ class RobotpyInstaller:
             opkg.update_packages()
 
         for feed in opkg.feeds:
-            for _, pkgdata in feed["pkgs"].items():
+            for _, pkgdata in feed.pkgs.items():
                 for pkg in pkgdata:
                     yield pkg
 
@@ -111,9 +110,7 @@ def remove_legacy_components(ssh: SshController):
     # -> only removes opkg components, pip will take care of the rest
 
     with catch_ssh_error("check for old RobotPy"):
-        result = ssh.exec_cmd(
-            "opkg list-installed python38*", get_output=True
-        ).stdout.strip()
+        result = ssh.check_output("opkg list-installed python38*").strip()
 
     if result != "":
         packages = [line.split()[0] for line in result.splitlines()]
@@ -126,9 +123,7 @@ def remove_legacy_components(ssh: SshController):
             raise ClickException("installer cannot continue")
 
         with catch_ssh_error("uninstall old RobotPy"):
-            result = ssh.exec_cmd(
-                f"opkg remove {' '.join(packages)}", print_output=True
-            )
+            ssh.exec_cmd(f"opkg remove {' '.join(packages)}", print_output=True)
 
 
 def roborio_checks(
@@ -142,12 +137,11 @@ def roborio_checks(
     #
 
     with catch_ssh_error("retrieving image version"):
-        result = ssh.exec_cmd(
+        result = ssh.check_output(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
-            get_output=True,
         )
 
-    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.stdout.strip())
+    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
     version = m.group(1) if m else "<unknown>"
 
     logger.info("-> RoboRIO image version %s", version)
@@ -163,9 +157,9 @@ def roborio_checks(
     #
 
     with catch_ssh_error("checking free space"):
-        result = ssh.exec_cmd("df -h / | tail -n 1", get_output=True)
+        result = ssh.check_output("df -h / | tail -n 1")
 
-    _, size, used, _, pct, _ = result.stdout.strip().split()
+    _, size, used, _, pct, _ = result.strip().split()
     logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
 
     # Remove in 2022
@@ -293,7 +287,7 @@ def opkg_download(
     no_index: bool,
     use_certifi: bool,
     requirements: typing.Tuple[str],
-    packages: typing.Tuple[str],
+    packages: typing.Sequence[str],
 ):
     """
     Downloads opkg package to local cache
@@ -343,7 +337,7 @@ def opkg_install(
     requirements: typing.Tuple[str],
     robot: str,
     ignore_image_version: bool,
-    packages: typing.Tuple[str],
+    packages: typing.Sequence[str],
 ):
     """
     Installs opkg package on RoboRIO
@@ -358,7 +352,7 @@ def opkg_install(
     #    to only install a package if it's not already installed
     opkg_files = []
     if requirements:
-        packages = [packages] + opkg.load_opkg_from_req(*requirements)
+        packages = list(packages) + opkg.load_opkg_from_req(*requirements)
 
     try:
         packages = opkg.resolve_pkg_deps(packages)
@@ -491,10 +485,10 @@ def opkg_uninstall(
     with installer.get_ssh(robot) as ssh:
         roborio_checks(ssh, ignore_image_version)
 
-        packages = " ".join(packages)
+        package_list = " ".join(packages)
 
         with catch_ssh_error("removing packages"):
-            ssh.exec_cmd(f"opkg remove {packages}", check=True, print_output=True)
+            ssh.exec_cmd(f"opkg remove {package_list}", check=True, print_output=True)
 
 
 #
@@ -567,7 +561,7 @@ def _pip_options(f):
 
 def _extend_pip_args(
     pip_args: typing.List[str],
-    cache: CacheServer,
+    cache: typing.Optional[CacheServer],
     force_reinstall: bool,
     ignore_installed: bool,
     no_deps: bool,
@@ -585,8 +579,9 @@ def _extend_pip_args(
 
     for req in requirements:
         fname = f"/requirements/{basename(req)}"
-        cache.add_mapping(fname, req)
-        pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
+        if cache:
+            cache.add_mapping(fname, req)
+            pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
 
 
 @installer.command()
@@ -613,7 +608,7 @@ def download(
         raise ClickException("You must give at least one requirement to download")
 
     try:
-        import pip
+        import pip  # type: ignore
     except ImportError:
         raise ClickException("ERROR: pip must be installed to download python packages")
 
@@ -649,7 +644,7 @@ def download(
     ]
 
     _extend_pip_args(
-        pip_args, cache, force_reinstall, ignore_installed, no_deps, pre, requirements
+        pip_args, None, force_reinstall, ignore_installed, no_deps, pre, requirements
     )
 
     pip_args.extend(packages)
@@ -695,7 +690,7 @@ def pip_install(
 
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
-        cache = installer.start_cache(ssh)
+        cachesvr = installer.start_cache(ssh)
 
         pip_args = [
             "/usr/local/bin/pip3",
@@ -704,7 +699,7 @@ def pip_install(
             "install",
             "--no-index",
             "--find-links",
-            f"http://localhost:{cache.port}/pip_cache/",
+            f"http://localhost:{cachesvr.port}/pip_cache/",
             # always add --upgrade, anything in the cache should be installed
             "--upgrade",
             "--upgrade-strategy=eager",
@@ -712,7 +707,7 @@ def pip_install(
 
         _extend_pip_args(
             pip_args,
-            cache,
+            cachesvr,
             force_reinstall,
             ignore_installed,
             no_deps,

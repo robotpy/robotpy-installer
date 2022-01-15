@@ -16,3 +16,4 @@ jobs:
         with:
           reporter: github-check
           target: robotpy_installer
+          mypy_flags: '--install-types --non-interactive'

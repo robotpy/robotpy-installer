@@ -561,7 +561,7 @@ def _pip_options(f):
 
 def _extend_pip_args(
     pip_args: typing.List[str],
-    cache: CacheServer,
+    cache: typing.Optional[CacheServer],
     force_reinstall: bool,
     ignore_installed: bool,
     no_deps: bool,
@@ -579,8 +579,9 @@ def _extend_pip_args(
 
     for req in requirements:
         fname = f"/requirements/{basename(req)}"
-        cache.add_mapping(fname, req)
-        pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
+        if cache:
+            cache.add_mapping(fname, req)
+            pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
 
 
 @installer.command()
@@ -643,7 +644,7 @@ def download(
     ]
 
     _extend_pip_args(
-        pip_args, cache, force_reinstall, ignore_installed, no_deps, pre, requirements
+        pip_args, None, force_reinstall, ignore_installed, no_deps, pre, requirements
     )
 
     pip_args.extend(packages)
@@ -689,7 +690,7 @@ def pip_install(
 
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
-        cache = installer.start_cache(ssh)
+        cachesvr = installer.start_cache(ssh)
 
         pip_args = [
             "/usr/local/bin/pip3",
@@ -698,7 +699,7 @@ def pip_install(
             "install",
             "--no-index",
             "--find-links",
-            f"http://localhost:{cache.port}/pip_cache/",
+            f"http://localhost:{cachesvr.port}/pip_cache/",
             # always add --upgrade, anything in the cache should be installed
             "--upgrade",
             "--upgrade-strategy=eager",
@@ -706,7 +707,7 @@ def pip_install(
 
         _extend_pip_args(
             pip_args,
-            cache,
+            cachesvr,
             force_reinstall,
             ignore_installed,
             no_deps,

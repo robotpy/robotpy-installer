@@ -20,7 +20,7 @@ from .errors import Error, SshExecError, OpkgError
 from .opkgrepo import OpkgRepo
 from .sshcontroller import SshController, ssh_from_cfg
 
-_WPILIB_YEAR = "2021"
+_WPILIB_YEAR = "2022"
 
 _OPKG_ARCH = "cortexa9-vfpv3"
 
@@ -33,15 +33,11 @@ _OPKG_FEEDS = [
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2020_v10",
-    "2021_v1",
-    "2021_v2",
-    "2021_v3.0",
-    "2021_v3.1",
+    "2022_v3.0",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
-_ROBOTPY_PYTHON_VERSION_NUM = "39"
+_ROBOTPY_PYTHON_VERSION_NUM = "310"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 
@@ -161,9 +157,6 @@ def roborio_checks(
 
     _, size, used, _, pct, _ = result.strip().split()
     logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
-
-    # Remove in 2022
-    remove_legacy_components(ssh)
 
     #
     # Ensure that pip is installed
@@ -411,6 +404,9 @@ def opkg_install(
                     echo + opkg install %(options)s ${PACKAGES[@]}
                     opkg install %(options)s ${PACKAGES[@]}
                 fi
+
+                sync
+                ldconfig
                 """
             )
             % {"options": "--force-reinstall" if force_reinstall else ""}

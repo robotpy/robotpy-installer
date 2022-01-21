@@ -137,7 +137,7 @@ def roborio_checks(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
         )
 
-    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
+    m = re.match(r'IMAGEVERSION = "FRC_roboRIO(?:2|)_(.*)"', result.strip())
     version = m.group(1) if m else "<unknown>"
 
     logger.info("-> RoboRIO image version %s", version)

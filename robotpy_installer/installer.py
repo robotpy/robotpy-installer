@@ -27,7 +27,8 @@ _OPKG_ARCH = "cortexa9-vfpv3"
 
 _OPKG_FEEDS = [
     f"https://www.tortall.net/~robotpy/feeds/{_WPILIB_YEAR}",
-    f"https://download.ni.com/ni-linux-rt/feeds/2019/arm/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/main/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/extra/{_OPKG_ARCH}",
 ]
 
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"

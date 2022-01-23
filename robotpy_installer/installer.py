@@ -36,6 +36,10 @@ _ROBORIO_IMAGES = [
     "2022_v3.0",
 ]
 
+_ROBORIO2_IMAGES = [
+    "2022_v3.0",
+]
+
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
 _ROBOTPY_PYTHON_VERSION_NUM = "310"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
@@ -137,14 +141,29 @@ def roborio_checks(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
         )
 
-    m = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
-    version = m.group(1) if m else "<unknown>"
+    roborio_match = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
+    roborio2_match = re.match(r'IMAGEVERSION = "FRC_roboRIO2_(.*)"', result.strip())
 
-    logger.info("-> RoboRIO image version %s", version)
+    if roborio_match:
+        version = roborio_match.group(1)
+        images = _ROBORIO_IMAGES
+        name = "RoboRIO"
+    elif roborio2_match:
+        version = roborio2_match.group(1)
+        images = _ROBORIO2_IMAGES
+        name = "RoboRIO 2"
+    else:
+        version = "<unknown>"
+        images = [
+            f"({_ROBORIO_IMAGES[-1]} | {_ROBORIO2_IMAGES[-1]})",
+        ]
+        name = "RoboRIO (1 | 2)"
 
-    if not ignore_image_version and version not in _ROBORIO_IMAGES:
+    logger.info(f"-> {name} image version: {version}")
+
+    if not ignore_image_version and version not in images:
         raise ClickException(
-            f"RoboRIO image {_ROBORIO_IMAGES[-1]} is required! Use --ignore-image-version to install anyways"
+            f"{name} image {images[-1]} is required! Use --ignore-image-version to install anyways"
         )
 
     #

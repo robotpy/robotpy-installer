@@ -594,10 +594,12 @@ def _extend_pip_args(
         pip_args.append("--no-deps")
 
     for req in requirements:
-        fname = f"/requirements/{basename(req)}"
         if cache:
+            fname = f"/requirements/{basename(req)}"
             cache.add_mapping(fname, req)
             pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
+        else:
+            pip_args.extend(["-r", req])
 
 
 @installer.command()

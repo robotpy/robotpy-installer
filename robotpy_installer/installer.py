@@ -35,10 +35,12 @@ _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/robor
 
 _ROBORIO_IMAGES = [
     "2022_v3.0",
+    "2022_v4.0",
 ]
 
 _ROBORIO2_IMAGES = [
     "2022_v3.0",
+    "2022_v4.0",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"

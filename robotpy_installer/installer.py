@@ -730,6 +730,56 @@ def pip_list(
             )
 
 
+@installer.command(name="freeze")
+@_common_ssh_options
+@option(
+    "--requirements",
+    "-r",
+    multiple=True,
+    type=click.Path(exists=True),
+    default=[],
+    help="Use the order in the given requirements file and its comments when generating output. This option can be used multiple times.",
+)
+@pass_obj
+def pip_freeze(
+    installer: RobotpyInstaller,
+    ignore_image_version: bool,
+    robot: str,
+    requirements: typing.Tuple[str],
+):
+    """
+    Output RoboRIO installed packages in requirements format.
+
+    packages are listed in a case-insensitive sorted order.
+    """
+    installer.log_startup()
+
+    with installer.get_ssh(robot) as ssh:
+
+        roborio_checks(ssh, ignore_image_version, pip_check=True)
+
+        with catch_ssh_error("pip3 freeze"):
+
+            pip_args = [
+                "/usr/local/bin/pip3",
+                "--no-cache-dir",
+                "--disable-pip-version-check",
+                "freeze",
+            ]
+
+            if requirements:
+                cache = installer.start_cache(ssh)
+                _extend_pip_args(
+                    pip_args, cache, False, False, False, False, requirements
+                )
+
+            ssh.exec_cmd(
+                " ".join(pip_args),
+                check=True,
+                print_output=True,
+            )
+
+
 @installer.command(name="uninstall")
 @_common_ssh_options
 @option(

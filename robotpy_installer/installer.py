@@ -20,29 +20,30 @@ from .errors import Error, SshExecError, OpkgError
 from .opkgrepo import OpkgRepo
 from .sshcontroller import SshController, ssh_from_cfg
 
-_WPILIB_YEAR = "2022"
+_WPILIB_YEAR = "2023"
+_IS_BETA = True
 
 _OPKG_ARCH = "cortexa9-vfpv3"
 
 
 _OPKG_FEEDS = [
     f"https://www.tortall.net/~robotpy/feeds/{_WPILIB_YEAR}",
-    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/main/{_OPKG_ARCH}",
-    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/extra/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/main/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/extra/{_OPKG_ARCH}",
 ]
 
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2022_v4.0",
+    "2023_v1.3",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2022_v4.0",
+    "2023_v1.3",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
-_ROBOTPY_PYTHON_VERSION_NUM = "310"
+_ROBOTPY_PYTHON_VERSION_NUM = "311"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 
@@ -560,7 +561,10 @@ def _pip_options(f):
     )(f)
     f = option("--no-deps", is_flag=True, help="Don't install package dependencies")(f)
     f = option(
-        "--pre", is_flag=True, help="Include pre-release and development versions"
+        "--pre",
+        is_flag=True,
+        default=_IS_BETA,
+        help="Include pre-release and development versions",
     )(f)
     f = option(
         "--requirements",

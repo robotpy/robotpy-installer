@@ -17,6 +17,6 @@ if __name__ == "__main__":
     platform.machine = lambda: "armv7l"
     platform.python_implementation = lambda: "CPython"
     platform.system = lambda: "Linux"
-    platform.python_version = lambda: "3.9.1"
+    platform.python_version = lambda: "3.11.0"
 
     runpy.run_module("pip", run_name="__main__")

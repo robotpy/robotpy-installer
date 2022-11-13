@@ -128,6 +128,18 @@ def remove_legacy_components(ssh: SshController):
             ssh.exec_cmd(f"opkg remove {' '.join(packages)}", print_output=True)
 
 
+def show_disk_space(
+    ssh: SshController,
+) -> typing.Tuple[str, str, str]:
+    with catch_ssh_error("checking free space"):
+        result = ssh.check_output("df -h / | tail -n 1")
+
+    _, size, used, _, pct, _ = result.strip().split()
+    logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
+
+    return size, used, pct
+
+
 def roborio_checks(
     ssh: SshController,
     ignore_image_version: bool,
@@ -173,11 +185,7 @@ def roborio_checks(
     # fill the user's disk, but it'd be annoying to figure out
     #
 
-    with catch_ssh_error("checking free space"):
-        result = ssh.check_output("df -h / | tail -n 1")
-
-    _, size, used, _, pct, _ = result.strip().split()
-    logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
+    show_disk_space(ssh)
 
     #
     # Ensure that pip is installed
@@ -448,6 +456,8 @@ def opkg_install(
         except SshExecError:
             pass
 
+        show_disk_space(ssh)
+
 
 @opkg.command(name="list")
 @option("--no-index", is_flag=True, help="Only examine local cache")
@@ -506,6 +516,8 @@ def opkg_uninstall(
 
         with catch_ssh_error("removing packages"):
             ssh.exec_cmd(f"opkg remove {package_list}", check=True, print_output=True)
+
+        show_disk_space(ssh)
 
 
 #
@@ -745,6 +757,8 @@ def pip_install(
         # Some of our hacky wheels require this
         with catch_ssh_error("running ldconfig"):
             ssh.exec_cmd("ldconfig")
+
+        show_disk_space(ssh)
 
 
 @installer.command(name="list")

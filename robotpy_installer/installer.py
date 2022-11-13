@@ -20,29 +20,30 @@ from .errors import Error, SshExecError, OpkgError
 from .opkgrepo import OpkgRepo
 from .sshcontroller import SshController, ssh_from_cfg
 
-_WPILIB_YEAR = "2022"
+_WPILIB_YEAR = "2023"
+_IS_BETA = True
 
 _OPKG_ARCH = "cortexa9-vfpv3"
 
 
 _OPKG_FEEDS = [
     f"https://www.tortall.net/~robotpy/feeds/{_WPILIB_YEAR}",
-    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/main/{_OPKG_ARCH}",
-    f"https://download.ni.com/ni-linux-rt/feeds/2021.0/arm/extra/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/main/{_OPKG_ARCH}",
+    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/extra/{_OPKG_ARCH}",
 ]
 
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2022_v4.0",
+    "2023_v1.3",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2022_v4.0",
+    "2023_v1.3",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
-_ROBOTPY_PYTHON_VERSION_NUM = "310"
+_ROBOTPY_PYTHON_VERSION_NUM = "311"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 
@@ -127,6 +128,18 @@ def remove_legacy_components(ssh: SshController):
             ssh.exec_cmd(f"opkg remove {' '.join(packages)}", print_output=True)
 
 
+def show_disk_space(
+    ssh: SshController,
+) -> typing.Tuple[str, str, str]:
+    with catch_ssh_error("checking free space"):
+        result = ssh.check_output("df -h / | tail -n 1")
+
+    _, size, used, _, pct, _ = result.strip().split()
+    logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
+
+    return size, used, pct
+
+
 def roborio_checks(
     ssh: SshController,
     ignore_image_version: bool,
@@ -172,11 +185,7 @@ def roborio_checks(
     # fill the user's disk, but it'd be annoying to figure out
     #
 
-    with catch_ssh_error("checking free space"):
-        result = ssh.check_output("df -h / | tail -n 1")
-
-    _, size, used, _, pct, _ = result.strip().split()
-    logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
+    show_disk_space(ssh)
 
     #
     # Ensure that pip is installed
@@ -447,6 +456,8 @@ def opkg_install(
         except SshExecError:
             pass
 
+        show_disk_space(ssh)
+
 
 @opkg.command(name="list")
 @option("--no-index", is_flag=True, help="Only examine local cache")
@@ -506,6 +517,8 @@ def opkg_uninstall(
         with catch_ssh_error("removing packages"):
             ssh.exec_cmd(f"opkg remove {package_list}", check=True, print_output=True)
 
+        show_disk_space(ssh)
+
 
 #
 # python installation
@@ -560,7 +573,10 @@ def _pip_options(f):
     )(f)
     f = option("--no-deps", is_flag=True, help="Don't install package dependencies")(f)
     f = option(
-        "--pre", is_flag=True, help="Include pre-release and development versions"
+        "--pre",
+        is_flag=True,
+        default=_IS_BETA,
+        help="Include pre-release and development versions",
     )(f)
     f = option(
         "--requirements",
@@ -741,6 +757,8 @@ def pip_install(
         # Some of our hacky wheels require this
         with catch_ssh_error("running ldconfig"):
             ssh.exec_cmd("ldconfig")
+
+        show_disk_space(ssh)
 
 
 @installer.command(name="list")

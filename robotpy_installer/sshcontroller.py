@@ -147,6 +147,7 @@ def ssh_from_cfg(
     cfg.setdefault("auth", {})
 
     if exists(cfg_filename):
+        logger.info("-> using existing config at '%s'", str(cfg_filename))
         cfg.read(cfg_filename)
         dirty = False
 

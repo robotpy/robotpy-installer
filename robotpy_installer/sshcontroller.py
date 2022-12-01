@@ -26,7 +26,7 @@ class SshExecResult(typing.NamedTuple):
     stdout: typing.Optional[str]
 
 
-class SshController(object):
+class SshController:
     """
     Use this to execute commands on a roboRIO in a cross platform manner
 
@@ -70,7 +70,10 @@ class SshController(object):
         output = None
         buffer = io.StringIO()
 
-        with self.client.get_transport().open_session() as channel:
+        transport = self.client.get_transport()
+        assert transport is not None
+
+        with transport.open_session() as channel:
             channel.set_combine_stderr(True)
             channel.exec_command(cmd)
 

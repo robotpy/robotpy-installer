@@ -1,6 +1,7 @@
 import logging
 import socket
 import threading
+import typing
 
 from robotpy_installer.utils import _resolve_addr
 

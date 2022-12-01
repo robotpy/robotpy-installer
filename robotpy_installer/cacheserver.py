@@ -33,6 +33,7 @@ class CacheServer:
         self.cache_root = cache_root
 
         self.transport = self.controller.client.get_transport()
+        assert self.transport is not None
         self.port = self.transport.request_port_forward("", 0)
 
         self.mapped_files: Dict[str, str] = {}

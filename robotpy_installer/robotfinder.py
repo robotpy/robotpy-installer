@@ -15,7 +15,7 @@ class RobotFinder:
         self.addrs = addrs
         self.cond = threading.Condition()
 
-    def find(self):
+    def find(self) -> typing.Optional[typing.Tuple[str, socket.socket]]:
 
         with self.cond:
             self.tried = 0
@@ -28,18 +28,18 @@ class RobotFinder:
                 self.cond.wait()
 
             if self.answer:
-                logger.info("-> Robot is at %s", self.answer)
-                return self.answer
+                logger.info("-> Robot is at %s", self.answer[0])
 
-    def _try_server(self, addr, resolve):
+            return self.answer
+
+    def _try_server(self, addr: str, resolve: bool):
         success = False
+        conn = None
         try:
             if resolve:
                 addr = _resolve_addr(addr)
-            else:
-                sd = socket.create_connection((addr, 22), timeout=10)
-                sd.close()
 
+            conn = socket.create_connection((addr, 22), timeout=10)
             success = True
         except Exception:
             pass
@@ -47,6 +47,8 @@ class RobotFinder:
         with self.cond:
             self.tried += 1
             if success and not self.answer:
-                self.answer = addr
+                self.answer = (addr, conn)
+            elif conn is not None:
+                conn.close()
 
             self.cond.notify_all()

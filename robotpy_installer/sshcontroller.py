@@ -5,7 +5,9 @@ import re
 import os
 from os.path import exists, join, expanduser, split as splitpath
 from pathlib import PurePath, PurePosixPath
+import socket
 import typing
+
 
 import paramiko
 
@@ -37,10 +39,17 @@ class SshController:
 
     """
 
-    def __init__(self, hostname, username, password):
+    def __init__(
+        self,
+        hostname: str,
+        username: str,
+        password: str,
+        conn: typing.Optional[socket.socket],
+    ):
         self.username = username
         self.password = password
         self.hostname = hostname
+        self.conn = conn
 
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(SuppressKeyPolicy)
@@ -52,6 +61,7 @@ class SshController:
             password=self.password,
             allow_agent=False,
             look_for_keys=False,
+            sock=self.conn,
         )
         return self
 
@@ -202,6 +212,8 @@ def ssh_from_cfg(
                 if m:
                     team = int(m.group(1))
 
+    conn = None
+
     if team:
         logger.info("Finding robot for team %s", team)
         finder = RobotFinder(
@@ -212,14 +224,18 @@ def ssh_from_cfg(
             ("roboRIO-%d-FRC.lan" % team, True),
             ("roboRIO-%d-FRC.frc-field.local" % team, True),  # practice field mDNS
         )
-        hostname = finder.find()
-        no_resolve = True
-        if not hostname:
+        answer = finder.find()
+        if not answer:
             raise Error("Could not find team %s robot" % team)
 
+        no_resolve = True
+        conn_hostname, conn = answer
+    else:
+        conn_hostname = hostname
+
     if not no_resolve:
-        hostname = _resolve_addr(hostname)
+        conn_hostname = _resolve_addr(hostname)
 
-    logger.info("Connecting to robot via SSH at %s", hostname)
+    logger.info("Connecting to robot via SSH at %s", conn_hostname)
 
-    return SshController(hostname, username, password)
+    return SshController(conn_hostname, username, password, conn)

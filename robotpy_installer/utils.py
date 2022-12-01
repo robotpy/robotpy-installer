@@ -141,7 +141,6 @@ def _resolve_addr(hostname):
                 0
             ]  # The address if the first tuple element for both AF_INET and AF_INET6
             logger.debug("-> Found %s at %s" % (hostname, ip))
-            hostname = ip
-            break
+            return ip
 
-    return hostname
+    raise Error("Could not find robot at %s" % hostname)

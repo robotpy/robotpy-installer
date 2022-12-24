@@ -35,11 +35,11 @@ _OPKG_FEEDS = [
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2023_v1.4",
+    "2023_v2.0",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2023_v1.4",
+    "2023_v2.0",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"

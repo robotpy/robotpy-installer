@@ -21,7 +21,7 @@ from .opkgrepo import OpkgRepo
 from .sshcontroller import SshController, ssh_from_cfg
 
 _WPILIB_YEAR = "2023"
-_IS_BETA = True
+_IS_BETA = False
 
 _OPKG_ARCH = "cortexa9-vfpv3"
 
@@ -35,7 +35,7 @@ _OPKG_FEEDS = [
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2023_v2.0",
+    "2023_v3.1",
 ]
 
 _ROBORIO2_IMAGES = [

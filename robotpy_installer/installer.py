@@ -710,9 +710,6 @@ def pip_install(
     Installs Python package(s) on a RoboRIO.
 
     The package must already been downloaded with the 'download' command first.
-
-    If the package already has been installed, it will not be upgraded.
-    Use -U to upgrade a package.
     """
 
     installer.log_startup()

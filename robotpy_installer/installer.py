@@ -39,7 +39,7 @@ _ROBORIO_IMAGES = [
 ]
 
 _ROBORIO2_IMAGES = [
-    "2023_v2.0",
+    "2023_v3.1",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"

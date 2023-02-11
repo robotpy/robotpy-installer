@@ -76,7 +76,6 @@ class SshController:
         get_output: bool = False,
         print_output: bool = False,
     ) -> SshExecResult:
-
         output = None
         buffer = io.StringIO()
 

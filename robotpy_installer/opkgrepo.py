@@ -61,7 +61,6 @@ class OpkgRepo(object):
             self.load_package_db(feed)
 
     def load_package_db(self, feed: Feed) -> None:
-
         # dictionary of lists of packages sorted by version
         pkg: Package = OrderedDict()
         with open(feed.db_fname, "r", encoding="utf-8") as fp:
@@ -219,7 +218,6 @@ class OpkgRepo(object):
         return retval
 
     def download(self, name: str) -> str:
-
         pkg = self.get_pkginfo(name)
         fname = self._get_pkg_fname(pkg)
 

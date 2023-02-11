@@ -73,7 +73,6 @@ def _urlretrieve(url, fname, cache, ssl_context):
             headers = rfp.info()
 
             with open(fname, "wb") as fp:
-
                 # Deal with header stuff
                 size = -1
                 read = 0

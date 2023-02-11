@@ -16,7 +16,6 @@ class RobotFinder:
         self.cond = threading.Condition()
 
     def find(self) -> typing.Optional[typing.Tuple[str, socket.socket]]:
-
         with self.cond:
             self.tried = 0
             for addr, resolve in self.addrs:

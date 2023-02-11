@@ -123,7 +123,10 @@ def _urlretrieve(url, fname, cache, ssl_context):
 def _resolve_addr(hostname):
     try:
         logger.debug("Looking up hostname '%s'...", hostname)
-        addrs = socket.getaddrinfo(hostname, None)
+        # Note: Windows will never return a SOCK_STREAM address if you don't explicitly
+        #       ask for it here. macOS and Linux always return all types, but filter it
+        #       for us if we specify it here, so it doesn't hurt to specify it.
+        addrs = socket.getaddrinfo(hostname, None, 0, socket.SOCK_STREAM)
     except socket.gaierror as e:
         raise Error("Could not find robot at %s" % hostname) from e
 

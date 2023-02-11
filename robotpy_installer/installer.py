@@ -52,7 +52,6 @@ logger = logging.getLogger("robotpy.installer")
 
 class RobotpyInstaller:
     def __init__(self, cache_root: pathlib.Path, cfgroot: pathlib.Path):
-
         self.cache_root = cache_root
         self.pip_cache = cache_root / "pip_cache"
         self.opkg_cache = cache_root / "opkg_cache"
@@ -107,7 +106,6 @@ def catch_ssh_error(msg: str):
 
 
 def remove_legacy_components(ssh: SshController):
-
     # (remove in 2022) check for old robotpy components
     # -> only removes opkg components, pip will take care of the rest
 
@@ -145,7 +143,6 @@ def roborio_checks(
     ignore_image_version: bool,
     pip_check: bool = False,
 ):
-
     #
     # Image version check
     #
@@ -382,7 +379,6 @@ def opkg_install(
         raise ClickException(str(e))
 
     with installer.get_ssh(robot) as ssh:
-
         cache = installer.start_cache(ssh)
 
         roborio_checks(ssh, ignore_image_version)
@@ -559,7 +555,6 @@ def install_python(
 
 
 def _pip_options(f):
-
     f = option(
         "--force-reinstall",
         is_flag=True,
@@ -718,7 +713,6 @@ def pip_install(
         raise ClickException("You must give at least one requirement to install")
 
     with installer.get_ssh(robot) as ssh:
-
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
         cachesvr = installer.start_cache(ssh)
@@ -772,7 +766,6 @@ def pip_list(
     installer.log_startup()
 
     with installer.get_ssh(robot) as ssh:
-
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
         with catch_ssh_error("pip3 list"):
@@ -811,7 +804,6 @@ def pip_uninstall(
         raise ClickException("You must give at least one requirement to install")
 
     with installer.get_ssh(robot) as ssh:
-
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
         pip_args = [

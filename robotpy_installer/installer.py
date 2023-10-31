@@ -32,7 +32,7 @@ _OPKG_FEEDS = [
     f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/extra/{_OPKG_ARCH}",
 ]
 
-_ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
+_ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
     "2024_v1.1",
@@ -660,7 +660,7 @@ def download(
         "--no-cache-dir",
         "--disable-pip-version-check",
         "download",
-        "--find-links",
+        "--extra-index-url",
         _ROBORIO_WHEELS,
         "--only-binary",
         ":all:",

@@ -11,7 +11,6 @@ import typing
 import click
 from click import argument, option, group, pass_context, pass_obj, ClickException
 
-from distutils.version import LooseVersion
 from os.path import basename
 
 from .version import version as __version__
@@ -640,15 +639,6 @@ def download(
         import pip  # type: ignore
     except ImportError:
         raise ClickException("ERROR: pip must be installed to download python packages")
-
-    try:
-        pip_version = LooseVersion(pip.__version__)
-    except:
-        pass
-    else:
-        # TODO: what do we actually support? newer is better obviously...
-        if pip_version < LooseVersion("18.0"):
-            raise ClickException("robotpy-installer requires pip 18.0 or later")
 
     installer.pip_cache.mkdir(parents=True, exist_ok=True)
 

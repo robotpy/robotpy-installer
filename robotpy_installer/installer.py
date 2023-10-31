@@ -1,5 +1,6 @@
 import contextlib
 import inspect
+import io
 import logging
 import pathlib
 import re
@@ -45,6 +46,7 @@ _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
 _ROBOTPY_PYTHON_VERSION_NUM = "312"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
+_PIP_STUB_PATH = "/home/admin/rpip"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -199,6 +201,18 @@ def roborio_checks(
                         """
                     )
                 )
+
+        # Use pip stub to override the wheel platform on roborio
+        with catch_ssh_error("copying pip stub"):
+            from . import _pipstub
+
+            stub_fp = io.BytesIO()
+            stub_fp.write(b"#!/usr/local/bin/python3\n\n")
+            stub_fp.write(inspect.getsource(_pipstub).encode("utf-8"))
+            stub_fp.seek(0)
+
+            ssh.sftp_fp(stub_fp, _PIP_STUB_PATH)
+            ssh.exec_cmd(f"chmod +x {_PIP_STUB_PATH}", check=True)
 
 
 #
@@ -708,11 +722,12 @@ def pip_install(
         cachesvr = installer.start_cache(ssh)
 
         pip_args = [
-            "/usr/local/bin/pip3",
+            "/home/admin/rpip",
             "--no-cache-dir",
             "--disable-pip-version-check",
             "install",
             "--no-index",
+            "--root-user-action=ignore",
             "--find-links",
             f"http://localhost:{cachesvr.port}/pip_cache/",
             # always add --upgrade, anything in the cache should be installed
@@ -760,7 +775,7 @@ def pip_list(
 
         with catch_ssh_error("pip3 list"):
             ssh.exec_cmd(
-                "/usr/local/bin/pip3 --no-cache-dir --disable-pip-version-check list",
+                f"{_PIP_STUB_PATH} --no-cache-dir --disable-pip-version-check list",
                 check=True,
                 print_output=True,
             )
@@ -797,7 +812,7 @@ def pip_uninstall(
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
         pip_args = [
-            "/usr/local/bin/pip3",
+            _PIP_STUB_PATH,
             "--no-cache-dir",
             "--disable-pip-version-check",
             "uninstall",

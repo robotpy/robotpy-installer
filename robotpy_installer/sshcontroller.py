@@ -144,6 +144,13 @@ class SshController:
             os.chdir(oldcwd)
             sftp.close()
 
+    def sftp_fp(self, fp, remote_path):
+        sftp = self.client.open_sftp()
+        try:
+            sftp.putfo(fp, remote_path)
+        finally:
+            sftp.close()
+
 
 def ssh_from_cfg(
     cfg_filename: typing.Union[str, os.PathLike],

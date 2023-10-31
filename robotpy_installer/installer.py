@@ -20,8 +20,8 @@ from .errors import Error, SshExecError, OpkgError
 from .opkgrepo import OpkgRepo
 from .sshcontroller import SshController, ssh_from_cfg
 
-_WPILIB_YEAR = "2023"
-_IS_BETA = False
+_WPILIB_YEAR = "2024"
+_IS_BETA = True
 
 _OPKG_ARCH = "cortexa9-vfpv3"
 
@@ -35,17 +35,15 @@ _OPKG_FEEDS = [
 _ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
 
 _ROBORIO_IMAGES = [
-    "2023_v3.1",
-    "2023_v3.2",
+    "2024_v1.1",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2023_v3.1",
-    "2023_v3.2",
+    "2024_v1.1",
 ]
 
-_ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
-_ROBOTPY_PYTHON_VERSION_NUM = "311"
+_ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
+_ROBOTPY_PYTHON_VERSION_NUM = "312"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 
@@ -154,15 +152,15 @@ def roborio_checks(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
         )
 
-    roborio_match = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
-    roborio2_match = re.match(r'IMAGEVERSION = "FRC_roboRIO2_(.*)"', result.strip())
+    roborio_match = re.match(r'IMAGEVERSION = "(FRC_)?roboRIO_(.*)"', result.strip())
+    roborio2_match = re.match(r'IMAGEVERSION = "(FRC_)?roboRIO2_(.*)"', result.strip())
 
     if roborio_match:
-        version = roborio_match.group(1)
+        version = roborio_match.group(2)
         images = _ROBORIO_IMAGES
         name = "RoboRIO"
     elif roborio2_match:
-        version = roborio2_match.group(1)
+        version = roborio2_match.group(2)
         images = _ROBORIO2_IMAGES
         name = "RoboRIO 2"
     else:

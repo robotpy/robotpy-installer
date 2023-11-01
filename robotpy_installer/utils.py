@@ -2,10 +2,10 @@ import contextlib
 import hashlib
 import json
 import logging
+import pathlib
 import socket
 import sys
 import urllib.request
-from os.path import exists
 
 from robotpy_installer import __version__
 from robotpy_installer.errors import Error
@@ -25,7 +25,7 @@ def md5sum(fname):
     return md5.hexdigest()
 
 
-def _urlretrieve(url, fname, cache, ssl_context):
+def _urlretrieve(url, fname: pathlib.Path, cache: bool, ssl_context):
     # Get it
     print("Downloading", url)
 
@@ -36,11 +36,11 @@ def _urlretrieve(url, fname, cache, ssl_context):
     cache_fname = None
 
     if cache:
-        cache_fname = fname + ".jmd"
-        if exists(fname) and exists(cache_fname):
+        cache_fname = fname.with_suffix(".jmd")
+        if fname.exists() and cache_fname.exists():
             try:
-                with open(cache_fname) as fp:
-                    md = json.load(fp)
+                with open(cache_fname) as cfp:
+                    md = json.load(cfp)
                 if md5sum(fname) == md["md5"]:
                     etag = md.get("etag")
                     last_modified = md.get("last-modified")
@@ -72,7 +72,7 @@ def _urlretrieve(url, fname, cache, ssl_context):
         ) as rfp:
             headers = rfp.info()
 
-            with open(fname, "wb") as fp:
+            with open(fname, "wb") as dfp:
                 # Deal with header stuff
                 size = -1
                 read = 0
@@ -84,7 +84,7 @@ def _urlretrieve(url, fname, cache, ssl_context):
                     if not block:
                         break
                     read += len(block)
-                    fp.write(block)
+                    dfp.write(block)
                     _reporthook(read, size)
 
         if size >= 0 and read < size:

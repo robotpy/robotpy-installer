@@ -1,53 +1,46 @@
 import contextlib
 import inspect
+import io
 import logging
 import pathlib
 import re
 import shutil
 import subprocess
 import sys
+from urllib.parse import urlparse
 import typing
 
 import click
 from click import argument, option, group, pass_context, pass_obj, ClickException
 
-from distutils.version import LooseVersion
 from os.path import basename
 
 from .version import version as __version__
 from .cacheserver import CacheServer
-from .errors import Error, SshExecError, OpkgError
-from .opkgrepo import OpkgRepo
+from .errors import Error, SshExecError
 from .sshcontroller import SshController, ssh_from_cfg
+from .utils import _urlretrieve
 
-_WPILIB_YEAR = "2023"
-_IS_BETA = False
+_WPILIB_YEAR = "2024"
+_IS_BETA = True
 
-_OPKG_ARCH = "cortexa9-vfpv3"
-
-
-_OPKG_FEEDS = [
-    f"https://www.tortall.net/~robotpy/feeds/{_WPILIB_YEAR}",
-    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/main/{_OPKG_ARCH}",
-    f"https://download.ni.com/ni-linux-rt/feeds/academic/2023/arm/extra/{_OPKG_ARCH}",
-]
-
-_ROBORIO_WHEELS = f"https://www.tortall.net/~robotpy/wheels/{_WPILIB_YEAR}/roborio"
+_ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2023_v3.1",
-    "2023_v3.2",
+    "2024_v1.1",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2023_v3.1",
-    "2023_v3.2",
+    "2024_v1.1",
 ]
 
-_ROBOTPY_PYTHON_PLATFORM = "linux_armv7l"
-_ROBOTPY_PYTHON_VERSION_NUM = "311"
+_ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
+_ROBOTPY_PYTHON_VERSION_NUM = "312"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
+_PIP_STUB_PATH = "/home/admin/rpip"
+
+_PYTHON_IPK = "https://github.com/robotpy/roborio-python/releases/download/2024-3.12.0-r1/python312_3.12.0-r1_cortexa9-vfpv3.ipk"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -63,22 +56,6 @@ class RobotpyInstaller:
     def log_startup(self) -> None:
         logger.info("RobotPy Installer %s", __version__)
         logger.info("-> caching files at %s", self.cache_root)
-
-    def get_opkg(self, ssl_context) -> OpkgRepo:
-        opkg = OpkgRepo(self.opkg_cache, _OPKG_ARCH, ssl_context)
-        for feed in _OPKG_FEEDS:
-            opkg.add_feed(feed)
-        return opkg
-
-    def get_opkg_packages(self, no_index: bool, ssl_context):
-        opkg = self.get_opkg(ssl_context)
-        if not no_index:
-            opkg.update_packages()
-
-        for feed in opkg.feeds:
-            for _, pkgdata in feed.pkgs.items():
-                for pkg in pkgdata:
-                    yield pkg
 
     def get_ssh(self, robot: typing.Optional[str]) -> SshController:
         try:
@@ -154,15 +131,15 @@ def roborio_checks(
             "grep IMAGEVERSION /etc/natinst/share/scs_imagemetadata.ini",
         )
 
-    roborio_match = re.match(r'IMAGEVERSION = "FRC_roboRIO_(.*)"', result.strip())
-    roborio2_match = re.match(r'IMAGEVERSION = "FRC_roboRIO2_(.*)"', result.strip())
+    roborio_match = re.match(r'IMAGEVERSION = "(FRC_)?roboRIO_(.*)"', result.strip())
+    roborio2_match = re.match(r'IMAGEVERSION = "(FRC_)?roboRIO2_(.*)"', result.strip())
 
     if roborio_match:
-        version = roborio_match.group(1)
+        version = roborio_match.group(2)
         images = _ROBORIO_IMAGES
         name = "RoboRIO"
     elif roborio2_match:
-        version = roborio2_match.group(1)
+        version = roborio2_match.group(2)
         images = _ROBORIO2_IMAGES
         name = "RoboRIO 2"
     else:
@@ -202,6 +179,18 @@ def roborio_checks(
                         """
                     )
                 )
+
+        # Use pip stub to override the wheel platform on roborio
+        with catch_ssh_error("copying pip stub"):
+            from . import _pipstub
+
+            stub_fp = io.BytesIO()
+            stub_fp.write(b"#!/usr/local/bin/python3\n\n")
+            stub_fp.write(inspect.getsource(_pipstub).encode("utf-8"))
+            stub_fp.seek(0)
+
+            ssh.sftp_fp(stub_fp, _PIP_STUB_PATH)
+            ssh.exec_cmd(f"chmod +x {_PIP_STUB_PATH}", check=True)
 
 
 #
@@ -278,87 +267,12 @@ def rm(installer: RobotpyInstaller, force: bool):
         shutil.rmtree(installer.cache_root)
 
 
-#
-# OPkg related commands
-#
-
-
-@installer.group()
-def opkg():
-    """
-    Advanced RoboRIO package management tools
-    """
-
-
-@opkg.command(name="download")
-@option("--no-index", is_flag=True, help="Only examine local cache")
-@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
-@option(
-    "-r",
-    "--requirements",
-    type=click.Path(exists=True),
-    multiple=True,
-    default=[],
-    help="Install from the given requirements file. This option can be used multiple times.",
-)
-@argument("packages", nargs=-1)
-@pass_obj
-def opkg_download(
-    installer: RobotpyInstaller,
-    no_index: bool,
-    use_certifi: bool,
-    requirements: typing.Tuple[str],
-    packages: typing.Sequence[str],
-):
-    """
-    Downloads opkg package to local cache
-    """
-
-    installer.log_startup()
-
-    try:
-        opkg = installer.get_opkg(_make_ssl_context(use_certifi))
-        if not no_index:
-            opkg.update_packages()
-
-        if requirements:
-            packages = list(packages) + opkg.load_opkg_from_req(*requirements)
-
-        if not packages:
-            raise ClickException("must specify packages to download")
-
-        package_list = opkg.resolve_pkg_deps(packages)
-        for package in package_list:
-            opkg.download(package)
-    except OpkgError as e:
-        raise ClickException(str(e)) from e
-
-
-@opkg.command(name="install")
-@option(
-    "--force-reinstall",
-    is_flag=True,
-    help="When upgrading, reinstall all packages even if they are already up-to-date.",
-)
-@option("--ignore-image-version", is_flag=True)
-@option(
-    "-r",
-    "--requirements",
-    type=click.Path(exists=True),
-    multiple=True,
-    default=[],
-    help="Install from the given requirements file. This option can be used multiple times.",
-)
-@argument("packages", nargs=-1, required=True)
-@_common_ssh_options
-@pass_obj
 def opkg_install(
     installer: RobotpyInstaller,
     force_reinstall: bool,
-    requirements: typing.Tuple[str],
     robot: str,
     ignore_image_version: bool,
-    packages: typing.Sequence[str],
+    packages: typing.Sequence[pathlib.Path],
 ):
     """
     Installs opkg package on RoboRIO
@@ -366,19 +280,16 @@ def opkg_install(
 
     installer.log_startup()
 
-    opkg = installer.get_opkg(None)
+    for package in packages:
+        if package.parent != installer.opkg_cache:
+            raise ValueError("internal error")
+        if not package.exists():
+            raise ClickException(f"{package.name} has not been downloaded yet")
 
     # Write out the install script
     # -> we use a script because opkg doesn't have a good mechanism
     #    to only install a package if it's not already installed
     opkg_files = []
-    if requirements:
-        packages = list(packages) + opkg.load_opkg_from_req(*requirements)
-
-    try:
-        packages = opkg.resolve_pkg_deps(packages)
-    except OpkgError as e:
-        raise ClickException(str(e))
 
     with installer.get_ssh(robot) as ssh:
         cache = installer.start_cache(ssh)
@@ -405,21 +316,18 @@ def opkg_install(
         )
 
         for package in packages:
-            try:
-                pkg, fname = opkg.get_cached_pkg(package)
-            except OpkgError as e:
-                raise ClickException(str(e))
+            pkgname, pkgversion, _ = package.name.split("_")
 
             opkg_script += "\n" + (
                 opkg_script_bit
                 % {
-                    "fname": basename(fname),
-                    "name": pkg["Package"],
-                    "version": pkg["Version"],
+                    "fname": package.name,
+                    "name": pkgname,
+                    "version": pkgversion,
                 }
             )
 
-            opkg_files.append(fname)
+            opkg_files.append(package.name)
 
         # Finish it out
         opkg_script += "\n" + (
@@ -457,89 +365,34 @@ def opkg_install(
         show_disk_space(ssh)
 
 
-@opkg.command(name="list")
-@option("--no-index", is_flag=True, help="Only examine local cache")
-@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
-@pass_obj
-def opkg_list(installer: RobotpyInstaller, no_index: bool, use_certifi: bool):
-    """
-    List all packages in opkg database
-    """
-
-    data = set()
-    for pkg in installer.get_opkg_packages(no_index, _make_ssl_context(use_certifi)):
-        data.add("%(Package)s - %(Version)s" % pkg)
-
-    for v in sorted(data):
-        print(v)
-
-
-@opkg.command(name="search")
-@option("--no-index", is_flag=True, help="Only examine local cache")
-@option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
-@argument("search")
-@pass_obj
-def opkg_search(
-    installer: RobotpyInstaller, no_index: bool, use_certifi: bool, search: str
-):
-    """
-    Search opkg database for packages
-    """
-
-    # TODO: make this more intelligent...
-    data = set()
-    for pkg in installer.get_opkg_packages(no_index, _make_ssl_context(use_certifi)):
-        if search in pkg["Package"] or search in pkg.get("Description", ""):
-            data.add("%(Package)s - %(Version)s" % pkg)
-    for v in sorted(data):
-        print(v)
-
-
-@opkg.command(name="uninstall")
-@argument("packages", nargs=-1, required=True)
-@_common_ssh_options
-@pass_obj
-def opkg_uninstall(
-    installer: RobotpyInstaller,
-    robot: str,
-    ignore_image_version: bool,
-    packages: typing.Tuple[str],
-):
-    installer.log_startup()
-
-    with installer.get_ssh(robot) as ssh:
-        roborio_checks(ssh, ignore_image_version)
-
-        package_list = " ".join(packages)
-
-        with catch_ssh_error("removing packages"):
-            ssh.exec_cmd(f"opkg remove {package_list}", check=True, print_output=True)
-
-        show_disk_space(ssh)
-
-
 #
 # python installation
 #
 
 
+def _get_python_ipk_path(installer: RobotpyInstaller) -> pathlib.Path:
+    parts = urlparse(_PYTHON_IPK)
+    return installer.opkg_cache / pathlib.PurePosixPath(parts.path).name
+
+
 @installer.command()
 @option("--use-certifi", is_flag=True, help="Use SSL certificates from certifi")
-@pass_context
-def download_python(ctx: click.Context, use_certifi: bool):
+@pass_obj
+def download_python(installer: RobotpyInstaller, use_certifi: bool):
     """
     Downloads Python to a folder to be installed
     """
-    ctx.forward(
-        opkg_download, packages=[_ROBOTPY_PYTHON_VERSION], use_certifi=use_certifi
-    )
+    installer.opkg_cache.mkdir(parents=True, exist_ok=True)
+
+    ipk_dst = _get_python_ipk_path(installer)
+    _urlretrieve(_PYTHON_IPK, ipk_dst, True, _make_ssl_context(use_certifi))
 
 
 @installer.command()
 @_common_ssh_options
-@pass_context
+@pass_obj
 def install_python(
-    ctx: click.Context,
+    installer: RobotpyInstaller,
     robot: str,
     ignore_image_version: bool,
 ):
@@ -548,7 +401,30 @@ def install_python(
 
     Requires download-python to be executed first.
     """
-    ctx.forward(opkg_install, packages=[_ROBOTPY_PYTHON_VERSION])
+    ipk_dst = _get_python_ipk_path(installer)
+    opkg_install(installer, False, robot, ignore_image_version, [ipk_dst])
+
+
+@installer.command()
+@_common_ssh_options
+@pass_obj
+def uninstall_python(
+    installer: RobotpyInstaller,
+    robot: str,
+    ignore_image_version: bool,
+):
+    """Uninstall Python from a RoboRIO"""
+    installer.log_startup()
+
+    with installer.get_ssh(robot) as ssh:
+        roborio_checks(ssh, ignore_image_version)
+
+        with catch_ssh_error("removing packages"):
+            ssh.exec_cmd(
+                f"opkg remove {_ROBOTPY_PYTHON_VERSION}", check=True, print_output=True
+            )
+
+        show_disk_space(ssh)
 
 
 #
@@ -643,22 +519,13 @@ def download(
     except ImportError:
         raise ClickException("ERROR: pip must be installed to download python packages")
 
-    try:
-        pip_version = LooseVersion(pip.__version__)
-    except:
-        pass
-    else:
-        # TODO: what do we actually support? newer is better obviously...
-        if pip_version < LooseVersion("18.0"):
-            raise ClickException("robotpy-installer requires pip 18.0 or later")
-
     installer.pip_cache.mkdir(parents=True, exist_ok=True)
 
     pip_args = [
         "--no-cache-dir",
         "--disable-pip-version-check",
         "download",
-        "--find-links",
+        "--extra-index-url",
         _ROBORIO_WHEELS,
         "--only-binary",
         ":all:",
@@ -720,11 +587,12 @@ def pip_install(
         cachesvr = installer.start_cache(ssh)
 
         pip_args = [
-            "/usr/local/bin/pip3",
+            "/home/admin/rpip",
             "--no-cache-dir",
             "--disable-pip-version-check",
             "install",
             "--no-index",
+            "--root-user-action=ignore",
             "--find-links",
             f"http://localhost:{cachesvr.port}/pip_cache/",
             # always add --upgrade, anything in the cache should be installed
@@ -772,7 +640,7 @@ def pip_list(
 
         with catch_ssh_error("pip3 list"):
             ssh.exec_cmd(
-                "/usr/local/bin/pip3 --no-cache-dir --disable-pip-version-check list",
+                f"{_PIP_STUB_PATH} --no-cache-dir --disable-pip-version-check list",
                 check=True,
                 print_output=True,
             )
@@ -809,7 +677,7 @@ def pip_uninstall(
         roborio_checks(ssh, ignore_image_version, pip_check=True)
 
         pip_args = [
-            "/usr/local/bin/pip3",
+            _PIP_STUB_PATH,
             "--no-cache-dir",
             "--disable-pip-version-check",
             "uninstall",

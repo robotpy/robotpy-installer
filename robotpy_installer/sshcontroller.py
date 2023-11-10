@@ -6,6 +6,7 @@ import os
 from os.path import exists, join, expanduser, split as splitpath
 from pathlib import PurePath, PurePosixPath
 import socket
+import sys
 import typing
 
 
@@ -91,7 +92,13 @@ class SshController:
                     if get_output:
                         buffer.write(line)
                     if print_output:
-                        print(line, end="")
+                        try:
+                            print(line, end="")
+                        except UnicodeEncodeError:
+                            eline = line.encode(
+                                sys.stdout.encoding, "backslashreplace"
+                            ).decode(sys.stdout.encoding)
+                            print(eline, end="")
 
             retval = channel.recv_exit_status()
 

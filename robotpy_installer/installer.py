@@ -27,11 +27,11 @@ _IS_BETA = True
 _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2024_v1.1",
+    "2024_v2.0",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2024_v1.1",
+    "2024_v2.0",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"

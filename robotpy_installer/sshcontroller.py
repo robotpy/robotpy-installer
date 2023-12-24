@@ -45,7 +45,7 @@ class SshController:
         hostname: str,
         username: str,
         password: str,
-        conn: typing.Optional[socket.socket],
+        conn: typing.Optional[socket.socket] = None,
     ):
         self.username = username
         self.password = password

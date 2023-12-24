@@ -103,6 +103,12 @@ class Deploy:
             help="If specified, allow uploading large files (> 250k) to the RoboRIO",
         )
 
+        parser.add_argument(
+            "--pre-deploy-script",
+            default=None,
+            help="Run the given Python script before deploying; --robot_path will be supplied",
+        )
+
         robot_args = parser.add_mutually_exclusive_group()
 
         robot_args.add_argument(
@@ -168,6 +174,28 @@ class Deploy:
         hostname_or_team = options.robot
         if not hostname_or_team and options.team:
             hostname_or_team = options.team
+
+        if options.pre_deploy_script:
+            import os.path
+            predeploy = os.path.abspath(options.pre_deploy_script)
+            if not os.path.exists(predeploy):
+                print_err(f"ERROR: Pre-deploy script {repr(predeploy)} not found")
+                return 1
+            print_err(f"Running pre-deploy script {repr(predeploy)}")
+            try:
+                # The pre-deploy script will be executed with the user's
+                # permissions.  We assume this is not a security issue,
+                # since the user is explicitly choosing on the command line
+                # to run the script.  If a pre-deploy script could be run
+                # automatically (based on its name, e.g.), there might be
+                # security concerns, especially when checking out an
+                # external repo to test someone else's code.
+                #
+                args = ['python3', predeploy, '--robot_path', robot_path]
+                subprocess.check_output(args)
+            except Exception as e:
+                print_err(f"ERROR: {type(e).__name__} raised: {str(e)}")
+                return 1
 
         try:
             with sshcontroller.ssh_from_cfg(

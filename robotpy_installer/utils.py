@@ -146,3 +146,17 @@ def _resolve_addr(hostname):
             return ip
 
     raise Error("Could not find robot at %s" % hostname)
+
+
+def print_err(*args):
+    print(*args, file=sys.stderr)
+
+
+def yesno(prompt: str) -> bool:
+    """Returns True if user answers 'y'"""
+    prompt += " [y/n]"
+    a = ""
+    while a not in ["y", "n"]:
+        a = input(prompt).lower()
+
+    return a == "y"

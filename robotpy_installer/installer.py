@@ -153,7 +153,12 @@ def roborio_checks(
 
     if not ignore_image_version and version not in images:
         raise ClickException(
-            f"{name} image {images[-1]} is required! Use --ignore-image-version to install anyways"
+            f"{name} image {images[-1]} is required!\n"
+            "\n"
+            "See https://docs.wpilib.org/en/stable/docs/zero-to-robot/step-3/imaging-your-roborio.html\n"
+            "for information about upgrading the RoboRIO image.\n"
+            "\n"
+            "Use --ignore-image-version to install anyways"
         )
 
     #

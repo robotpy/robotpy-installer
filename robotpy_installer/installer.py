@@ -208,7 +208,7 @@ def _make_ssl_context(use_certifi: bool):
         return None
 
     try:
-        import certifi
+        import certifi  # type: ignore
     except ImportError:
         raise click.ClickException(
             "certifi is not installed, please install it via `pip install certifi`"

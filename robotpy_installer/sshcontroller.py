@@ -163,7 +163,7 @@ def ssh_from_cfg(
     cfg_filename: typing.Union[str, os.PathLike],
     username: str,
     password: str,
-    hostname: typing.Optional[str] = None,
+    hostname: typing.Optional[typing.Union[str, int]] = None,
     no_resolve=False,
 ):
     # hostname can be a team number or an ip / hostname

@@ -1,8 +1,9 @@
 import argparse
-import inspect
 
 import pathlib
 import json
+import sys
+import typing
 
 from . import sshcontroller
 
@@ -32,13 +33,23 @@ class DeployInfo:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
-    def run(self, options, robot_class, **static_options):
-        robot_file = pathlib.Path(inspect.getfile(robot_class))
-        cfg_filename = robot_file.parent / ".deploy_cfg"
+    def run(
+        self,
+        main_file: pathlib.Path,
+        robot: typing.Optional[str],
+        team: typing.Optional[int],
+        no_resolve: bool,
+    ):
+        if not main_file.exists():
+            print(
+                f"ERROR: is this a robot project? {main_file} does not exist",
+                file=sys.stderr,
+            )
+            return 1
 
-        hostname_or_team = options.robot
-        if not hostname_or_team and options.team:
-            hostname_or_team = options.team
+        cfg_filename = main_file.parent / ".deploy_cfg"
+
+        hostname_or_team = robot or team
 
         try:
             with sshcontroller.ssh_from_cfg(
@@ -46,7 +57,7 @@ class DeployInfo:
                 username="lvuser",
                 password="",
                 hostname=hostname_or_team,
-                no_resolve=options.no_resolve,
+                no_resolve=no_resolve,
             ) as ssh:
                 result = ssh.exec_cmd(
                     (

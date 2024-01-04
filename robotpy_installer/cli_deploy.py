@@ -1,19 +1,20 @@
 import argparse
 import contextlib
-import subprocess
 import datetime
-import socket
+import getpass
 import inspect
 import json
 import os
-import sys
+import pathlib
 import shutil
+import socket
+import subprocess
+import sys
 import tempfile
 import threading
-import getpass
+import typing
 
-from os.path import abspath, basename, dirname, join, splitext
-from pathlib import PurePosixPath
+from os.path import join, splitext
 
 from . import sshcontroller
 from .utils import print_err, yesno
@@ -21,13 +22,6 @@ from .utils import print_err, yesno
 import logging
 
 logger = logging.getLogger("deploy")
-
-
-def relpath(path):
-    """Path helper, gives you a path relative to this file"""
-    return os.path.normpath(
-        os.path.join(os.path.abspath(os.path.dirname(__file__)), path)
-    )
 
 
 @contextlib.contextmanager
@@ -63,13 +57,6 @@ class Deploy:
             action="store_true",
             default=False,
             help="If specified, runs the code in debug mode (which only currently enables verbose logging)",
-        )
-
-        parser.add_argument(
-            "--nonstandard",
-            action="store_true",
-            default=False,
-            help="When specified, allows you to deploy code in a file that isn't called robot.py",
         )
 
         parser.add_argument(
@@ -120,11 +107,33 @@ class Deploy:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
-    def run(self, options, robot_class, **static_options):
+    def run(
+        self,
+        main_file: pathlib.Path,
+        project_path: pathlib.Path,
+        robot_class,  # we don't use this but it ensures the code can import locally
+        builtin: bool,
+        skip_tests: bool,
+        debug: bool,
+        nc: bool,
+        nc_ds: bool,
+        no_version_check: bool,
+        large: bool,
+        robot: typing.Optional[str],
+        team: typing.Optional[int],
+        no_resolve: bool,
+    ):
         # run the test suite before uploading
-        if not options.skip_tests:
-            test_args = [sys.executable, sys.modules["__main__"].__file__, "test"]
-            if options.builtin:
+        if not skip_tests:
+            test_args = [
+                sys.executable,
+                "-m",
+                "robotpy",
+                "--main",
+                str(main_file),
+                "test",
+            ]
+            if builtin:
                 test_args.append("--builtin")
 
             logger.info("Running tests: %s", " ".join(test_args))
@@ -147,27 +156,14 @@ class Deploy:
                 print("WARNING: Uploading code against my better judgement...")
 
         # upload all files in the robot.py source directory
-        robot_file = abspath(inspect.getfile(robot_class))
-        robot_path = dirname(robot_file)
-        robot_filename = basename(robot_file)
-        cfg_filename = join(robot_path, ".deploy_cfg")
 
-        if not options.nonstandard and robot_filename != "robot.py":
-            print_err(
-                f"ERROR: Your robot code must be in a file called robot.py (launched from {robot_filename})!"
-            )
-            print_err()
-            print_err(
-                "If you really want to do this, then specify the --nonstandard argument"
-            )
+        robot_filename = main_file.name
+        cfg_filename = project_path / ".deploy_cfg"
+
+        if not large and not self._check_large_files(project_path):
             return 1
 
-        if not options.large and not self._check_large_files(robot_path):
-            return 1
-
-        hostname_or_team = options.robot
-        if not hostname_or_team and options.team:
-            hostname_or_team = options.team
+        hostname_or_team = robot or team
 
         try:
             with sshcontroller.ssh_from_cfg(
@@ -175,12 +171,14 @@ class Deploy:
                 username="lvuser",
                 password="",
                 hostname=hostname_or_team,
-                no_resolve=options.no_resolve,
+                no_resolve=no_resolve,
             ) as ssh:
-                if not self._check_requirements(ssh, options.no_version_check):
+                if not self._check_requirements(ssh, no_version_check):
                     return 1
 
-                if not self._do_deploy(ssh, options, robot_filename, robot_path):
+                if not self._do_deploy(
+                    ssh, debug, nc, nc_ds, robot_filename, project_path
+                ):
                     return 1
 
         except sshcontroller.SshExecError as e:
@@ -190,7 +188,7 @@ class Deploy:
         print("\nSUCCESS: Deploy was successful!")
         return 0
 
-    def _generate_build_data(self, robot_path) -> dict:
+    def _generate_build_data(self, project_path: pathlib.Path) -> dict:
         """
         Generate a deploy.json
         """
@@ -199,7 +197,7 @@ class Deploy:
             "deploy-host": socket.gethostname(),  # os.uname doesn't work on systems that use non-unix os
             "deploy-user": getpass.getuser(),
             "deploy-date": datetime.datetime.now().replace(microsecond=0).isoformat(),
-            "code-path": robot_path,
+            "code-path": str(project_path),
         }
 
         # Test if we're in a git repo or not
@@ -242,11 +240,11 @@ class Deploy:
 
         return deploy_data
 
-    def _check_large_files(self, robot_path):
+    def _check_large_files(self, robot_path: pathlib.Path):
         large_sz = 250000
 
         large_files = []
-        for fname in self._copy_to_tmpdir(None, robot_path, dry_run=True):
+        for fname in self._copy_to_tmpdir(pathlib.Path(), robot_path, dry_run=True):
             st = os.stat(fname)
             if st.st_size > large_sz:
                 large_files.append((fname, st.st_size))
@@ -326,13 +324,15 @@ class Deploy:
     def _do_deploy(
         self,
         ssh: sshcontroller.SshController,
-        options,
+        debug: bool,
+        nc: bool,
+        nc_ds: bool,
         robot_filename: str,
-        robot_path: str,
+        project_path: pathlib.Path,
     ) -> bool:
         # This probably should be configurable... oh well
 
-        deploy_dir = PurePosixPath("/home/lvuser")
+        deploy_dir = pathlib.PurePosixPath("/home/lvuser")
         py_deploy_subdir = "py"
         py_new_deploy_subdir = "py_new"
         py_deploy_dir = deploy_dir / py_deploy_subdir
@@ -342,11 +342,11 @@ class Deploy:
         # In 2015, there were stdout/stderr issues. In 2016+, they seem to
         # have been fixed, but need to use -u for it to really work properly
 
-        if options.debug:
+        if debug:
             compileall_flags = ""
             deployed_cmd = (
                 "env LD_LIBRARY_PATH=/usr/local/frc/lib/ "
-                f"/usr/local/bin/python3 -u {py_deploy_dir}/{robot_filename} -v run"
+                f"/usr/local/bin/python3 -u -m robotpy --main {py_deploy_dir}/{robot_filename} -v run"
             )
             deployed_cmd_fname = "robotDebugCommand"
             bash_cmd = "/bin/bash -cex"
@@ -354,7 +354,7 @@ class Deploy:
             compileall_flags = "-O"
             deployed_cmd = (
                 "env LD_LIBRARY_PATH=/usr/local/frc/lib/ "
-                f"/usr/local/bin/python3 -u -O {py_deploy_dir}/{robot_filename} run"
+                f"/usr/local/bin/python3 -u -O -m robotpy --main {py_deploy_dir}/{robot_filename} run"
             )
             deployed_cmd_fname = "robotCommand"
             bash_cmd = "/bin/bash -ce"
@@ -367,7 +367,7 @@ class Deploy:
                 f'echo "{deployed_cmd}" > {deploy_dir}/{deployed_cmd_fname}', check=True
             )
 
-        if options.debug:
+        if debug:
             with wrap_ssh_error("touching frcDebug"):
                 ssh.exec_cmd("touch /tmp/frcdebug", check=True)
 
@@ -376,15 +376,15 @@ class Deploy:
 
         # Copy the files over, copy to a temporary directory first
         # -> this is inefficient, but it's easier in sftp
-        tmp_dir = tempfile.mkdtemp()
+        tmp_dir = pathlib.Path(tempfile.mkdtemp())
         try:
-            py_tmp_dir = join(tmp_dir, py_new_deploy_subdir)
+            py_tmp_dir = tmp_dir / py_new_deploy_subdir
             # Copy robot path contents to new deploy subdir
-            self._copy_to_tmpdir(py_tmp_dir, robot_path)
+            self._copy_to_tmpdir(py_tmp_dir, project_path)
 
             # Copy 'build' artifacts to new deploy subdir
-            with open(join(py_tmp_dir, "deploy.json"), "w") as outf:
-                json.dump(self._generate_build_data(robot_path), outf)
+            with open(py_tmp_dir / "deploy.json", "w") as outf:
+                json.dump(self._generate_build_data(project_path), outf)
 
             # sftp new deploy subdir to robot
             ssh.sftp(py_tmp_dir, deploy_dir, mkdir=True)
@@ -394,8 +394,8 @@ class Deploy:
         # start the netconsole listener now if requested, *before* we
         # actually start the robot code, so we can see all messages
         nc_thread = None
-        if options.nc or options.nc_ds:
-            nc_thread = self._start_nc(ssh, options)
+        if nc or nc_ds:
+            nc_thread = self._start_nc(ssh, nc_ds)
 
         # Restart the robot code and we're done!
         sshcmd = (
@@ -420,14 +420,14 @@ class Deploy:
 
         return True
 
-    def _start_nc(self, ssh, options):
+    def _start_nc(self, ssh: sshcontroller.SshController, nc_ds: bool):
         from netconsole import run  # type: ignore
 
         nc_event = threading.Event()
         nc_thread = threading.Thread(
             target=run,
             args=(ssh.hostname,),
-            kwargs=dict(connect_event=nc_event, fakeds=options.nc_ds),
+            kwargs=dict(connect_event=nc_event, fakeds=nc_ds),
             daemon=True,
         )
         nc_thread.start()
@@ -435,14 +435,17 @@ class Deploy:
         logger.info("Netconsole is listening...")
         return nc_thread
 
-    def _copy_to_tmpdir(self, tmp_dir, robot_path, dry_run=False):
+    def _copy_to_tmpdir(
+        self, tmp_dir: pathlib.Path, project_path: pathlib.Path, dry_run: bool = False
+    ):
         upload_files = []
         ignore_exts = frozenset({".pyc", ".whl", ".ipk", ".zip", ".gz", ".wpilog"})
 
-        for root, dirs, files in os.walk(robot_path):
-            prefix = root[len(robot_path) + 1 :]
+        prefix_len = len(str(project_path)) + 1
+        for root, dirs, files in os.walk(project_path):
+            prefix = root[prefix_len:]
             if not dry_run:
-                os.mkdir(join(tmp_dir, prefix))
+                (tmp_dir / prefix).mkdir()
 
             # skip .svn, .git, .hg, etc directories
             for d in dirs[:]:
@@ -459,6 +462,6 @@ class Deploy:
                 upload_files.append(fname)
 
                 if not dry_run:
-                    shutil.copy(fname, join(tmp_dir, prefix, filename))
+                    shutil.copy(fname, tmp_dir / prefix / filename)
 
         return upload_files

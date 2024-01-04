@@ -1,5 +1,8 @@
 import argparse
-import inspect
+import pathlib
+import sys
+import typing
+
 
 from os.path import abspath, dirname, join
 
@@ -37,20 +40,29 @@ class Undeploy:
             help="Do it without prompting",
         )
 
-    def run(self, options, robot_class, **static_options):
-        robot_file = abspath(inspect.getfile(robot_class))
-        robot_path = dirname(robot_file)
-        cfg_filename = join(robot_path, ".deploy_cfg")
+    def run(
+        self,
+        main_file: pathlib.Path,
+        robot: typing.Optional[str],
+        team: typing.Optional[int],
+        no_resolve: bool,
+        yes: bool,
+    ):
+        if not main_file.exists():
+            print(
+                f"ERROR: is this a robot project? {main_file} does not exist",
+                file=sys.stderr,
+            )
+            return 1
+        cfg_filename = main_file.parent / ".deploy_cfg"
 
-        if not options.yes:
+        if not yes:
             if not yesno(
                 "This will stop your robot code and delete it from the RoboRIO. Continue?"
             ):
                 return 1
 
-        hostname_or_team = options.robot
-        if not hostname_or_team and options.team:
-            hostname_or_team = options.team
+        hostname_or_team = robot or team
 
         try:
             with sshcontroller.ssh_from_cfg(
@@ -58,7 +70,7 @@ class Undeploy:
                 username="lvuser",
                 password="",
                 hostname=hostname_or_team,
-                no_resolve=options.no_resolve,
+                no_resolve=no_resolve,
             ) as ssh:
                 # first, turn off the running program
                 ssh.exec_cmd("/usr/local/frc/bin/frcKillRobot.sh -t")

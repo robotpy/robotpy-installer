@@ -7,6 +7,7 @@ import typing
 
 from . import sshcontroller
 
+from .utils import handle_cli_error
 from .utils import print_err
 
 
@@ -33,8 +34,10 @@ class DeployInfo:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
+    @handle_cli_error
     def run(
         self,
+        project_path: pathlib.Path,
         main_file: pathlib.Path,
         robot: typing.Optional[str],
         team: typing.Optional[int],
@@ -47,34 +50,26 @@ class DeployInfo:
             )
             return 1
 
-        cfg_filename = main_file.parent / ".deploy_cfg"
-
-        hostname_or_team = robot or team
-
-        try:
-            with sshcontroller.ssh_from_cfg(
-                cfg_filename,
-                username="lvuser",
-                password="",
-                hostname=hostname_or_team,
-                no_resolve=no_resolve,
-            ) as ssh:
-                result = ssh.exec_cmd(
-                    (
-                        "[ -f /home/lvuser/py/deploy.json ] && "
-                        "cat /home/lvuser/py/deploy.json || "
-                        "echo {}"
-                    ),
-                    get_output=True,
-                )
-                if not result.stdout:
-                    print("{}")
-                else:
-                    data = json.loads(result.stdout)
-                    print(json.dumps(data, indent=2, sort_keys=True))
-
-        except sshcontroller.SshExecError as e:
-            print_err("ERROR:", str(e))
-            return 1
+        with sshcontroller.ssh_from_cfg(
+            project_path,
+            main_file,
+            username="lvuser",
+            password="",
+            robot_or_team=robot or team,
+            no_resolve=no_resolve,
+        ) as ssh:
+            result = ssh.exec_cmd(
+                (
+                    "[ -f /home/lvuser/py/deploy.json ] && "
+                    "cat /home/lvuser/py/deploy.json || "
+                    "echo {}"
+                ),
+                get_output=True,
+            )
+            if not result.stdout:
+                print("{}")
+            else:
+                data = json.loads(result.stdout)
+                print(json.dumps(data, indent=2, sort_keys=True))
 
         return 0

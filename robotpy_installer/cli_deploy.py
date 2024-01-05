@@ -17,7 +17,7 @@ import typing
 from os.path import join, splitext
 
 from . import sshcontroller
-from .utils import print_err, yesno
+from .utils import handle_cli_error, print_err, yesno
 
 import logging
 
@@ -107,6 +107,7 @@ class Deploy:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
+    @handle_cli_error
     def run(
         self,
         main_file: pathlib.Path,
@@ -158,32 +159,23 @@ class Deploy:
         # upload all files in the robot.py source directory
 
         robot_filename = main_file.name
-        cfg_filename = project_path / ".deploy_cfg"
 
         if not large and not self._check_large_files(project_path):
             return 1
 
-        hostname_or_team = robot or team
+        with sshcontroller.ssh_from_cfg(
+            project_path,
+            main_file,
+            username="lvuser",
+            password="",
+            robot_or_team=robot or team,
+            no_resolve=no_resolve,
+        ) as ssh:
+            if not self._check_requirements(ssh, no_version_check):
+                return 1
 
-        try:
-            with sshcontroller.ssh_from_cfg(
-                cfg_filename,
-                username="lvuser",
-                password="",
-                hostname=hostname_or_team,
-                no_resolve=no_resolve,
-            ) as ssh:
-                if not self._check_requirements(ssh, no_version_check):
-                    return 1
-
-                if not self._do_deploy(
-                    ssh, debug, nc, nc_ds, robot_filename, project_path
-                ):
-                    return 1
-
-        except sshcontroller.SshExecError as e:
-            print_err("ERROR:", str(e))
-            return 1
+            if not self._do_deploy(ssh, debug, nc, nc_ds, robot_filename, project_path):
+                return 1
 
         print("\nSUCCESS: Deploy was successful!")
         return 0

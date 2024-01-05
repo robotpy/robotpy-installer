@@ -1,10 +1,9 @@
-import configparser
 import io
 import logging
 import re
 import os
 from os.path import exists, join, expanduser, split as splitpath
-from pathlib import PurePath, PurePosixPath
+from pathlib import Path, PurePath, PurePosixPath
 import socket
 import sys
 import typing
@@ -12,9 +11,11 @@ import typing
 
 import paramiko
 
-from robotpy_installer.errors import SshExecError, Error
-from robotpy_installer.robotfinder import RobotFinder
-from robotpy_installer.utils import _resolve_addr
+from .errors import SshExecError, Error
+from .robotfinder import RobotFinder
+from .utils import _resolve_addr
+
+from . import wpilib_preferences
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -160,74 +161,93 @@ class SshController:
 
 
 def ssh_from_cfg(
-    cfg_filename: typing.Union[str, os.PathLike],
+    project_path: Path,
+    main_file: Path,
     username: str,
     password: str,
-    hostname: typing.Optional[typing.Union[str, int]] = None,
+    robot_or_team: typing.Union[None, str, int] = None,
     no_resolve=False,
 ):
-    # hostname can be a team number or an ip / hostname
-
-    dirty = True
-    cfg = configparser.ConfigParser()
-    cfg.setdefault("auth", {})
-
-    if exists(cfg_filename):
-        logger.info("-> using existing config at '%s'", str(cfg_filename))
-        cfg.read(cfg_filename)
+    try:
+        prefs = wpilib_preferences.load(project_path)
         dirty = False
-
-    if hostname is not None:
+    except FileNotFoundError:
+        prefs = wpilib_preferences.WPILibPreferencesJson()
         dirty = True
-        cfg["auth"]["hostname"] = str(hostname)
 
-    hostname = cfg["auth"].get("hostname")
+    if robot_or_team is not None:
+        if isinstance(robot_or_team, int):
+            prefs.teamNumber = robot_or_team
+        else:
+            prefs.robotHostname = robot_or_team
 
-    if not hostname:
+    if prefs.teamNumber is None and prefs.robotHostname is None:
         dirty = True
 
         print("Robot setup (hit enter for default value):")
-        while not hostname:
-            hostname = input("Team number or robot hostname: ")
+        response = ""
+        while not response:
+            response = input("Team number or robot hostname: ")
 
-        cfg["auth"]["hostname"] = hostname
+        try:
+            prefs.teamNumber = int(response)
+        except ValueError:
+            prefs.robotHostname = response
 
     if dirty:
-        with open(cfg_filename, "w") as fp:
-            cfg.write(fp)
+        # Only write preferences file if this is a robot project
+        if main_file.exists():
+            prefs.write(project_path)
+        else:
+            logger.info(
+                "-> not saving robot preferences as this isn't a robot project directory"
+            )
 
-    # see if an ssh alias exists
-    try:
-        with open(join(expanduser("~"), ".ssh", "config")) as fp:
-            hn = hostname.lower()
-            for line in fp:
-                if re.match(r"\s*host\s+%s\s*" % hn, line.lower()):
-                    no_resolve = True
-                    break
-    except Exception:
-        pass
+    team: typing.Optional[int] = prefs.teamNumber
+    hostname: typing.Optional[str] = prefs.robotHostname
 
-    # check to see if this is a team number
-    team = None
-    try:
-        team = int(hostname.strip())
-    except ValueError:
-        # check to see if it matches a team hostname
-        # -> allows legacy hostname configurations to benefit from
-        #    the robot finder
-        if not no_resolve:
-            hostmod = hostname.lower().strip()
-            m = re.search(r"10.(\d+).(\d+).2", hostmod)
-            if m:
-                team = int(m.group(1)) * 100 + int(m.group(2))
-            else:
-                m = re.match(r"roborio-(\d+)-frc(?:\.(?:local|lan))?$", hostmod)
+    # Prefer a hostname if specified
+    if hostname:
+        # see if an ssh alias exists
+        try:
+            with open(join(expanduser("~"), ".ssh", "config")) as fp:
+                hn = hostname.lower()
+                for line in fp:
+                    if re.match(r"\s*host\s+%s\s*" % hn, line.lower()):
+                        no_resolve = True
+                        break
+        except Exception:
+            pass
+
+        # Attempt to convert it to a team number, which allows users to
+        # benefit from the robot finder
+        try:
+            team = int(hostname.strip())
+        except ValueError:
+            if not no_resolve:
+                hostmod = hostname.lower().strip()
+                m = re.search(r"10.(\d+).(\d+).2", hostmod)
                 if m:
-                    team = int(m.group(1))
+                    team = int(m.group(1)) * 100 + int(m.group(2))
+                    hostname = None
+                else:
+                    m = re.match(r"roborio-(\d+)-frc(?:\.(?:local|lan))?$", hostmod)
+                    if m:
+                        team = int(m.group(1))
+                        hostname = None
+        else:
+            hostname = None
 
     conn = None
 
-    if team:
+    assert team is not None or hostname is not None
+
+    if hostname is not None:
+        if no_resolve:
+            conn_hostname = hostname
+        else:
+            conn_hostname = _resolve_addr(hostname)
+    elif team is not None:
         logger.info("Finding robot for team %s", team)
         finder = RobotFinder(
             ("10.%d.%d.2" % (team // 100, team % 100), False),
@@ -244,10 +264,7 @@ def ssh_from_cfg(
         no_resolve = True
         conn_hostname, conn = answer
     else:
-        conn_hostname = hostname
-
-    if not no_resolve:
-        conn_hostname = _resolve_addr(hostname)
+        raise Error("internal logic error")
 
     logger.info("Connecting to robot via SSH at %s", conn_hostname)
 

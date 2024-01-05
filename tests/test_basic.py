@@ -8,7 +8,8 @@ def test_download_basic():
         [
             sys.executable,
             "-m",
-            "robotpy_installer",
+            "robotpy",
+            "installer",
             "download",
             "-r",
             str(pathlib.Path(__file__).parent / "sample-requirements.txt"),

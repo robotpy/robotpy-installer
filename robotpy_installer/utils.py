@@ -1,3 +1,4 @@
+import functools
 import contextlib
 import hashlib
 import json
@@ -8,7 +9,7 @@ import sys
 import urllib.request
 
 from robotpy_installer import __version__
-from robotpy_installer.errors import Error
+from .errors import Error
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -160,3 +161,15 @@ def yesno(prompt: str) -> bool:
         a = input(prompt).lower()
 
     return a == "y"
+
+
+def handle_cli_error(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except Error as e:
+            print(f"ERROR:", e, file=sys.stderr)
+            return False
+
+    return wrapper

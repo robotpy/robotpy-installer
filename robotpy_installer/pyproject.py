@@ -20,7 +20,7 @@ class NoRobotpyError(PyprojectError):
     pass
 
 
-def _pyproject_toml_path(project_path: pathlib.Path):
+def toml_path(project_path: pathlib.Path):
     return project_path / "pyproject.toml"
 
 
@@ -61,7 +61,7 @@ class RobotPyProjectToml:
         return packages
 
 
-def robotpy_default_version() -> str:
+def robotpy_installed_version() -> str:
     # this is a bit weird because this project doesn't depend on robotpy, it's
     # the other way around.. but oh well?
     try:
@@ -82,12 +82,16 @@ def write_default_pyproject(
     :param project_path: Path to robot project
     """
 
-    robotpy_version = robotpy_default_version()
+    robotpy_version = robotpy_installed_version()
 
-    with open(_pyproject_toml_path(project_path), "w") as fp:
-        fp.write(
-            inspect.cleandoc(
-                f"""
+    provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    if not provides_extra:
+        extras = ""
+    else:
+        extras = "\n    # ".join(f'"{extra}"' for extra in sorted(provides_extra))
+
+    content = inspect.cleandoc(
+        f"""
             
             #
             # Use this configuration file to control what RobotPy packages are installed
@@ -99,17 +103,23 @@ def write_default_pyproject(
             # Version of robotpy this project depends on
             robotpy_version = "{robotpy_version}"
             
-            # Which extras should be installed
+            # Which extra RobotPy components should be installed
             # -> equivalent to `pip install robotpy[extra1, ...]
-            robotpy_extras = []
+            robotpy_extras = [
+                # ##EXTRAS##
+            ]
 
             # Other pip packages to install
             requires = []
 
         """
-            )
-            + "\n"
-        )
+    )
+
+    content += "\n"
+    content = content.replace("##EXTRAS##", extras)
+
+    with open(toml_path(project_path), "w") as fp:
+        fp.write(content)
 
 
 def load(
@@ -125,11 +135,11 @@ def load(
     :param project_path: Path to robot project
     """
 
-    pyproject_path = _pyproject_toml_path(project_path)
+    pyproject_path = toml_path(project_path)
     if not pyproject_path.exists():
         if default_if_missing:
             return RobotPyProjectToml(
-                robotpy_requires=Requirement(f"robotpy=={robotpy_default_version()}")
+                robotpy_requires=Requirement(f"robotpy=={robotpy_installed_version()}")
             )
         if write_if_missing:
             write_default_pyproject(project_path)

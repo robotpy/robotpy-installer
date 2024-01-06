@@ -3,9 +3,9 @@ robotpy-installer
 
 The RobotPy installer can be used to:
 
-* Install RobotPy on your RoboRIO
+* Install python on your RoboRIO
 * Install python packages on your RoboRIO via pip
-* Install binary packages from NI and distributed by the RobotPy project via opkg
+* Deploy RobotPy projects to a RoboRIO
 
 It can install downloaded packages on your RoboRIO without requiring internet
 access, which makes it usable in a competition (provided you downloaded the

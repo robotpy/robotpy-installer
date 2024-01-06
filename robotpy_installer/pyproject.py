@@ -5,6 +5,7 @@ import pathlib
 import typing
 
 from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 from packaging.version import Version, InvalidVersion
 import tomli
 
@@ -12,6 +13,10 @@ from .errors import Error
 
 
 class PyprojectError(Error):
+    pass
+
+
+class NoRobotpyError(PyprojectError):
     pass
 
 
@@ -56,6 +61,18 @@ class RobotPyProjectToml:
         return packages
 
 
+def robotpy_default_version() -> str:
+    # this is a bit weird because this project doesn't depend on robotpy, it's
+    # the other way around.. but oh well?
+    try:
+        return metadata("robotpy")["Version"]
+    except PackageNotFoundError:
+        raise NoRobotpyError(
+            "cannot infer default robotpy package version: robotpy package not installed "
+            "(do `pip install robotpy` or create a pyproject.toml)"
+        ) from None
+
+
 def write_default_pyproject(
     project_path: pathlib.Path,
 ):
@@ -65,15 +82,7 @@ def write_default_pyproject(
     :param project_path: Path to robot project
     """
 
-    # this is a bit weird because this project doesn't depend on robotpy, it's
-    # the other way around.. but oh well?
-    try:
-        robotpy_version = metadata("robotpy")["Version"]
-    except PackageNotFoundError:
-        raise PyprojectError(
-            "cannot infer default robotpy package version: robotpy package not installed "
-            "(do `pip install robotpy`)"
-        ) from None
+    robotpy_version = robotpy_default_version()
 
     with open(_pyproject_toml_path(project_path), "w") as fp:
         fp.write(
@@ -104,7 +113,10 @@ def write_default_pyproject(
 
 
 def load(
-    project_path: pathlib.Path, *, write_if_missing: bool = False
+    project_path: pathlib.Path,
+    *,
+    write_if_missing: bool = False,
+    default_if_missing=False,
 ) -> RobotPyProjectToml:
     """
     Reads a pyproject.toml file for a RobotPy project. Raises FileNotFoundError
@@ -114,8 +126,13 @@ def load(
     """
 
     pyproject_path = _pyproject_toml_path(project_path)
-    if write_if_missing and not pyproject_path.exists():
-        write_default_pyproject(project_path)
+    if not pyproject_path.exists():
+        if default_if_missing:
+            return RobotPyProjectToml(
+                robotpy_requires=Requirement(f"robotpy=={robotpy_default_version()}")
+            )
+        if write_if_missing:
+            write_default_pyproject(project_path)
 
     with open(pyproject_path, "rb") as fp:
         data = tomli.load(fp)
@@ -166,3 +183,21 @@ def load(
         requires = []
 
     return RobotPyProjectToml(robotpy_requires=robotpy_requires, requires=requires)
+
+
+def are_requirements_met(
+    pp: RobotPyProjectToml, packages: typing.Dict[str, str]
+) -> bool:
+    pv = {name: Version(v) for name, v in packages.items()}
+    for req in [pp.robotpy_requires] + pp.requires:
+        req_name = canonicalize_name(req.name)
+        met = False
+        for pkg, pkg_version in pv.items():
+            if pkg == req_name:
+                met = pkg_version in req.specifier
+                break
+
+        if not met:
+            return False
+
+    return True

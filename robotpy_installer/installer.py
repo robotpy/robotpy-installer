@@ -45,6 +45,14 @@ class InstallerException(Error):
     pass
 
 
+class PipInstallError(InstallerException):
+    pass
+
+
+class PythonMissingError(InstallerException):
+    pass
+
+
 @contextlib.contextmanager
 def catch_ssh_error(msg: str):
     try:
@@ -79,15 +87,19 @@ class RobotpyInstaller:
         ignore_image_version: bool = False,
         log_disk_usage: bool = True,
         no_resolve: bool = False,
+        ssh: typing.Optional[SshController] = None,
     ):
-        ssh = ssh_from_cfg(
-            project_path,
-            main_file,
-            username="admin",
-            password="",
-            robot_or_team=robot_or_team,
-            no_resolve=no_resolve,
-        )
+        if ssh is None:
+            ssh = ssh_from_cfg(
+                project_path,
+                main_file,
+                username="admin",
+                password="",
+                robot_or_team=robot_or_team,
+                no_resolve=no_resolve,
+            )
+        elif ssh.username != "admin":
+            ssh = SshController(ssh.hostname, "admin", "")
 
         with ssh:
             self._ssh = ssh
@@ -137,7 +149,10 @@ class RobotpyInstaller:
             if package.parent != self.opkg_cache:
                 raise ValueError("internal error")
             if not package.exists():
-                raise InstallerException(f"{package.name} has not been downloaded yet")
+                raise PythonMissingError(
+                    f"{package.name} has not been downloaded yet\n"
+                    "- Use 'python -m robotpy installer download-python' to download"
+                )
 
         # Write out the install script
         # -> we use a script because opkg doesn't have a good mechanism
@@ -316,6 +331,9 @@ class RobotpyInstaller:
         parts = urlparse(_PYTHON_IPK)
         return self.opkg_cache / pathlib.PurePosixPath(parts.path).name
 
+    def is_python_downloaded(self) -> bool:
+        return self._python_ipk_path.exists()
+
     def download_python(self, use_certifi: bool):
         self.opkg_cache.mkdir(parents=True, exist_ok=True)
 
@@ -328,6 +346,7 @@ class RobotpyInstaller:
 
         Requires download-python to be executed first.
         """
+        logger.info("Installing Python on RoboRIO (this may take a few minutes)")
         ipk_dst = self._python_ipk_path
         self.opkg_install(False, [ipk_dst])
 
@@ -488,8 +507,10 @@ class RobotpyInstaller:
 
         pip_args.extend(packages)
 
-        with catch_ssh_error("installing packages"):
+        try:
             self.ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
+        except SshExecError as e:
+            raise PipInstallError(f"installing packages: {e}") from e
 
         # Some of our hacky wheels require this
         with catch_ssh_error("running ldconfig"):

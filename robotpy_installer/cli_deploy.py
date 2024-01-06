@@ -16,7 +16,9 @@ import typing
 
 from os.path import join, splitext
 
-from . import sshcontroller
+from . import pyproject, sshcontroller
+from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
+from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
 
 import logging
@@ -34,7 +36,10 @@ def wrap_ssh_error(msg: str):
 
 class Deploy:
     """
-    Uploads your robot code to the robot and executes it immediately
+    Installs requirements and uploads code to the robot and executes it immediately
+
+    You must run the 'sync' command first to download the requirements specified
+    in pyproject.toml. See `robotpy sync --help` for more details.
     """
 
     def __init__(self, parser: argparse.ArgumentParser):
@@ -76,11 +81,26 @@ class Deploy:
         )
 
         parser.add_argument(
-            "-n",
-            "--no-version-check",
+            "--ignore-image-version",
             action="store_true",
             default=False,
-            help="If specified, don't verify that your local wpilib install matches the version on the robot (not recommended)",
+            help="Ignore RoboRIO image version",
+        )
+
+        install_args = parser.add_mutually_exclusive_group()
+
+        install_args.add_argument(
+            "--no-install",
+            action="store_true",
+            default=False,
+            help="If specified, do not use pyproject.toml to install packages on the robot before deploy",
+        )
+
+        install_args.add_argument(
+            "--force-install",
+            action="store_true",
+            default=False,
+            help="Force installation of packages required by pyproject.toml",
         )
 
         parser.add_argument(
@@ -118,7 +138,9 @@ class Deploy:
         debug: bool,
         nc: bool,
         nc_ds: bool,
-        no_version_check: bool,
+        ignore_image_version: bool,
+        no_install: bool,
+        force_install: bool,
         large: bool,
         robot: typing.Optional[str],
         team: typing.Optional[int],
@@ -171,8 +193,14 @@ class Deploy:
             robot_or_team=robot or team,
             no_resolve=no_resolve,
         ) as ssh:
-            if not self._check_requirements(ssh, no_version_check):
-                return 1
+            self._ensure_requirements(
+                project_path,
+                main_file,
+                ssh,
+                ignore_image_version,
+                no_install,
+                force_install,
+            )
 
             if not self._do_deploy(ssh, debug, nc, nc_ds, robot_filename, project_path):
                 return 1
@@ -251,67 +279,110 @@ class Deploy:
 
         return True
 
-    def _check_requirements(
-        self, ssh: sshcontroller.SshController, no_wpilib_version_check: bool
-    ) -> bool:
+    def _ensure_requirements(
+        self,
+        project_path: pathlib.Path,
+        main_file: pathlib.Path,
+        ssh: sshcontroller.SshController,
+        ignore_image_version: bool,
+        no_install: bool,
+        force_install: bool,
+    ):
+        python_exists = False
+        requirements_installed = False
+
+        project: typing.Optional[pyproject.RobotPyProjectToml] = None
+
+        if not no_install:
+            try:
+                project = pyproject.load(project_path, default_if_missing=True)
+            except pyproject.NoRobotpyError as e:
+                raise pyproject.NoRobotpyError(
+                    f"{e}\n\nUse --no-install to ignore this error (not recommended)"
+                )
+
         # does python exist
         with wrap_ssh_error("checking if python exists"):
-            if ssh.exec_cmd("[ -x /usr/local/bin/python3 ]").returncode != 0:
-                print_err(
-                    "ERROR: python3 was not found on the roboRIO: have you installed robotpy?"
-                )
-                print_err()
-                print_err(
-                    f"See {sys.executable} -m robotpy-installer install-python --help"
-                )
-                return False
-
-        # does wpilib exist and does the version match
-        with wrap_ssh_error("checking for wpilib version"):
-            py = ";".join(
-                [
-                    "import os.path, site",
-                    "version = 'unknown'",
-                    "v = site.getsitepackages()[0] + '/wpilib/version.py'",
-                    "exec(open(v).read(), globals()) if os.path.exists(v) else False",
-                    "print(version)",
-                ]
+            python_exists = (
+                ssh.exec_cmd("[ -x /usr/local/bin/python3 ]").returncode == 0
             )
+            if not python_exists:
+                logger.warning("Python is not installed on RoboRIO")
 
-            result = ssh.exec_cmd(
-                f'/usr/local/bin/python3 -c "{py}"', check=True, get_output=True
-            )
-            assert result.stdout is not None
-
-            wpilib_version = result.stdout.strip()
-            if wpilib_version == "unknown":
-                print_err(
-                    "WPILib was not found on the roboRIO: have you installed it on the RoboRIO?"
+        if python_exists:
+            if no_install:
+                requirements_installed = True
+            elif not force_install:
+                # Use importlib.metadata instead of pip because it's way faster than pip
+                result = ssh.exec_cmd(
+                    "/usr/local/bin/python3 -c "
+                    "'from importlib.metadata import distributions;"
+                    "import json; import sys; "
+                    "json.dump({dist.name: dist.version for dist in distributions()},sys.stdout)'",
+                    get_output=True,
                 )
-                return False
+                assert result.stdout is not None
+                pkgdata = json.loads(result.stdout)
 
-            print("RoboRIO has WPILib version", wpilib_version)
+                logger.debug("Roborio has these packages installed:")
+                for pkg, version in pkgdata.items():
+                    logger.debug("- %s (%s)", pkg, version)
 
-            try:
-                from wpilib import __version__ as local_wpilib_version  # type: ignore
-            except ImportError:
-                local_wpilib_version = "unknown"
-
-            if not no_wpilib_version_check and wpilib_version != local_wpilib_version:
-                print_err(f"ERROR: expected WPILib version {local_wpilib_version}")
-                print_err()
-                print_err("You should either:")
-                print_err(
-                    "- If the robot version is older, upgrade the RobotPy on your robot"
+                assert project is not None
+                requirements_installed = pyproject.are_requirements_met(
+                    project, pkgdata
                 )
-                print_err("- Otherwise, upgrade pyfrc on your computer")
-                print_err()
-                print_err(
-                    "Alternatively, you can specify --no-version-check to skip this check"
-                )
-                return False
+                if not requirements_installed:
+                    logger.warning("Project requirements not installed on RoboRIO")
+                else:
+                    logger.info("All project requirements already installed")
 
-        return True
+        #
+        # Install requirements
+        #
+
+        if force_install:
+            requirements_installed = False
+
+        if not python_exists or not requirements_installed:
+            if no_install and not python_exists:
+                raise Error(
+                    "python3 was not found on the roboRIO\n"
+                    "- could not install it because no-install was specified\n"
+                    "- Use 'python -m robotpy installer install-python' to install python separately"
+                )
+
+            installer = RobotpyInstaller()
+            with installer.connect_to_robot(
+                project_path=project_path,
+                main_file=main_file,
+                ignore_image_version=ignore_image_version,
+                ssh=ssh,
+            ):
+                if not python_exists:
+                    try:
+                        installer.install_python()
+                    except PythonMissingError as e:
+                        raise PythonMissingError(
+                            f"{e}\n\n"
+                            "Run 'python -m robotpy sync' to download your project requirements from the internet (or --no-install to ignore)"
+                        ) from e
+
+                if not requirements_installed:
+                    logger.info("Installing project requirements on RoboRIO:")
+                    assert project is not None
+                    packages = project.get_install_list()
+                    for package in packages:
+                        logger.info("- %s", package)
+
+                    try:
+                        installer.pip_install(False, False, False, False, [], packages)
+                    except PipInstallError as e:
+                        raise PipInstallError(
+                            f"{e}\n\n"
+                            "If 'no matching distribution found', run 'python -m robotpy sync' to download your\n"
+                            "project requirements from the internet (or --no-install to ignore)."
+                        ) from e
 
     def _do_deploy(
         self,

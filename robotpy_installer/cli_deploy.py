@@ -2,7 +2,6 @@ import argparse
 import contextlib
 import datetime
 import getpass
-import inspect
 import json
 import os
 import pathlib
@@ -87,6 +86,14 @@ class Deploy:
             help="Ignore RoboRIO image version",
         )
 
+        parser.add_argument(
+            "-n",
+            "--no-verify",
+            action="store_true",
+            default=False,
+            help="If specified, do not verify that the robotpy version in pyproject.toml is installed locally",
+        )
+
         install_args = parser.add_mutually_exclusive_group()
 
         install_args.add_argument(
@@ -140,6 +147,7 @@ class Deploy:
         nc_ds: bool,
         ignore_image_version: bool,
         no_install: bool,
+        no_verify: bool,
         force_install: bool,
         large: bool,
         robot: typing.Optional[str],
@@ -185,6 +193,32 @@ class Deploy:
         if not large and not self._check_large_files(project_path):
             return 1
 
+        project = None
+
+        if not no_install:
+            try:
+                project = pyproject.load(project_path, default_if_missing=True)
+            except pyproject.NoRobotpyError as e:
+                raise pyproject.NoRobotpyError(
+                    f"{e}\n\nUse --no-install to ignore this error (not recommended)"
+                )
+
+            if not no_verify:
+                if not pyproject.are_local_requirements_met(project):
+                    packages = project.get_install_list()
+
+                    logger.info("Robot project requirements:")
+                    for package in packages:
+                        logger.info("- %s", package)
+
+                    msg = (
+                        f"Locally installed packages do not match requirements in pyproject.toml\n"
+                        "- If pyproject.toml has older versions, update it to newer versions\n"
+                        "- If you have older versions installed locally, use 'python -m robotpy sync' to update your local install\n"
+                        "- You can also specify --no-verify to ignore this error"
+                    )
+                    raise Error(msg)
+
         with sshcontroller.ssh_from_cfg(
             project_path,
             main_file,
@@ -194,6 +228,7 @@ class Deploy:
             no_resolve=no_resolve,
         ) as ssh:
             self._ensure_requirements(
+                project,
                 project_path,
                 main_file,
                 ssh,
@@ -281,6 +316,7 @@ class Deploy:
 
     def _ensure_requirements(
         self,
+        project: typing.Optional[pyproject.RobotPyProjectToml],
         project_path: pathlib.Path,
         main_file: pathlib.Path,
         ssh: sshcontroller.SshController,
@@ -290,16 +326,6 @@ class Deploy:
     ):
         python_exists = False
         requirements_installed = False
-
-        project: typing.Optional[pyproject.RobotPyProjectToml] = None
-
-        if not no_install:
-            try:
-                project = pyproject.load(project_path, default_if_missing=True)
-            except pyproject.NoRobotpyError as e:
-                raise pyproject.NoRobotpyError(
-                    f"{e}\n\nUse --no-install to ignore this error (not recommended)"
-                )
 
         # does python exist
         with wrap_ssh_error("checking if python exists"):

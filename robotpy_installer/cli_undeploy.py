@@ -42,6 +42,7 @@ class Undeploy:
 
     def run(
         self,
+        project_path: pathlib.Path,
         main_file: pathlib.Path,
         robot: typing.Optional[str],
         team: typing.Optional[int],
@@ -54,7 +55,6 @@ class Undeploy:
                 file=sys.stderr,
             )
             return 1
-        cfg_filename = main_file.parent / ".deploy_cfg"
 
         if not yes:
             if not yesno(
@@ -62,14 +62,13 @@ class Undeploy:
             ):
                 return 1
 
-        hostname_or_team = robot or team
-
         try:
             with sshcontroller.ssh_from_cfg(
-                cfg_filename,
+                project_path,
+                main_file,
                 username="lvuser",
                 password="",
-                hostname=hostname_or_team,
+                robot_or_team=robot or team,
                 no_resolve=no_resolve,
             ) as ssh:
                 # first, turn off the running program

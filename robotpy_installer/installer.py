@@ -18,16 +18,16 @@ from .sshcontroller import SshController, ssh_from_cfg
 from .utils import _urlretrieve
 
 _WPILIB_YEAR = "2024"
-_IS_BETA = True
+_IS_BETA = False
 
 _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2024_v2.0",
+    "2024_v2.1",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2024_v2.0",
+    "2024_v2.1",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"

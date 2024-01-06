@@ -1,5 +1,5 @@
 import dataclasses
-from importlib.metadata import metadata, PackageNotFoundError
+from importlib.metadata import distributions, metadata, PackageNotFoundError
 import inspect
 import pathlib
 import typing
@@ -201,3 +201,8 @@ def are_requirements_met(
             return False
 
     return True
+
+
+def are_local_requirements_met(pp: RobotPyProjectToml) -> bool:
+    packages = {dist.metadata["Name"]: dist.version for dist in distributions()}
+    return are_requirements_met(pp, packages)

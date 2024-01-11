@@ -4,6 +4,7 @@ import re
 import os
 from os.path import exists, join, expanduser, split as splitpath
 from pathlib import Path, PurePath, PurePosixPath
+import shlex
 import socket
 import sys
 import typing
@@ -112,6 +113,30 @@ class SshController:
             output = buffer.getvalue()
 
         return SshExecResult(retval, output)
+
+    def exec_bash(
+        self,
+        /,
+        *commands: str,
+        bash_opts: str = "e",
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+    ) -> SshExecResult:
+        """
+        Executes a single giant shell command and returns the result
+        """
+
+        parts = ["/bin/bash"]
+        if bash_opts:
+            parts.append(f"-{bash_opts}")
+        parts.append("-c")
+
+        parts.append(";".join(c for c in commands))
+        cmd = shlex.join(parts)
+        return self.exec_cmd(
+            cmd, check=check, get_output=get_output, print_output=print_output
+        )
 
     def check_output(self, cmd: str, *, print_output: bool = False) -> str:
         result = self.exec_cmd(

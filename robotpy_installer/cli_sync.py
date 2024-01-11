@@ -1,10 +1,15 @@
 import argparse
+import inspect
 import logging
 import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
-from .utils import handle_cli_error
+from packaging.version import Version
+
+from .utils import handle_cli_error, yesno
 
 
 from .installer import RobotpyInstaller
@@ -83,6 +88,27 @@ class Sync:
         # parse pyproject.toml to determine the requirements
         project = pyproject.load(project_path, write_if_missing=True)
 
+        # Get the local version and don't accidentally downgrade them
+        try:
+            local_robotpy_version = Version(pyproject.robotpy_installed_version())
+            if project.robotpy_version < local_robotpy_version:
+                logger.warning(
+                    "pyproject.toml robotpy version is older than currently installed version"
+                )
+                print()
+                msg = (
+                    f"Version currently installed: {local_robotpy_version}\n"
+                    f"Version in `pyproject.toml`: {project.robotpy_version}\n"
+                    "- Should we downgrade robotpy?"
+                )
+                if not yesno(msg):
+                    print(
+                        "Please update your pyproject.toml with the desired version of robotpy"
+                    )
+                    return False
+        except pyproject.NoRobotpyError:
+            pass
+
         packages = project.get_install_list()
 
         logger.info("Robot project requirements:")
@@ -123,4 +149,24 @@ class Sync:
                 pip_args.append("--user")
             pip_args.extend(packages)
 
-            os.execv(sys.executable, pip_args)
+            # POSIX systems are easy, just execv and we're done
+            if sys.platform != "win32":
+                os.execv(sys.executable, pip_args)
+
+            with tempfile.NamedTemporaryFile("w", delete=False, suffix=".py") as fp:
+                fp.write(
+                    inspect.cleandoc(
+                        f"""
+                        import os, subprocess
+                        subprocess.run({pip_args!r})
+                        print()
+                        input("Install complete, press enter to continue")
+                        os.unlink(__file__)
+                    """
+                    )
+                )
+
+            print("pip is launching in a new window to complete the installation")
+            subprocess.Popen(
+                [sys.executable, fp.name], creationflags=subprocess.CREATE_NEW_CONSOLE
+            )

@@ -3,6 +3,7 @@ import pathlib
 import shutil
 import typing
 
+from . import roborio_utils
 from .utils import handle_cli_error
 
 from .installer import (
@@ -151,6 +152,33 @@ class InstallerUninstallPython:
             installer.uninstall_python()
 
 
+class InstallerUninstallJavaCpp:
+    """
+    Uninstall FRC Java/C++ programs from a RoboRIO
+    """
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        _add_ssh_options(parser)
+
+    @handle_cli_error
+    def run(
+        self,
+        project_path: pathlib.Path,
+        main_file: pathlib.Path,
+        ignore_image_version: bool,
+        robot: typing.Optional[str],
+    ):
+        installer = RobotpyInstaller()
+        with installer.connect_to_robot(
+            project_path=project_path,
+            main_file=main_file,
+            robot_or_team=robot,
+            ignore_image_version=ignore_image_version,
+        ):
+            if not roborio_utils.uninstall_cpp_java_lvuser(installer.ssh):
+                roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+
+
 #
 # Installer pip things
 #
@@ -290,7 +318,7 @@ class InstallerList:
             main_file=main_file,
             robot_or_team=robot,
             ignore_image_version=ignore_image_version,
-            log_disk_usage=False,
+            log_usage=False,
         ):
             installer.pip_list()
 
@@ -347,4 +375,5 @@ class Installer:
         ("list", InstallerList),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),
+        ("uninstall-frc-java-cpp", InstallerUninstallJavaCpp),
     ]

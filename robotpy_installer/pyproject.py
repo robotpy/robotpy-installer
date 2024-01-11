@@ -48,9 +48,20 @@ class RobotPyProjectToml:
 
     """
 
+    #: Version of robotpy that is depended on
+    robotpy_version: Version
+
+    robotpy_extras: typing.List[str] = dataclasses.field(default_factory=list)
+
     #: Requirement for the robotpy meta package -- all RobotPy projects must
     #: depend on it
-    robotpy_requires: Requirement
+    @property
+    def robotpy_requires(self) -> Requirement:
+        if self.robotpy_extras:
+            extras = f"[{','.join(self.robotpy_extras)}]"
+        else:
+            extras = ""
+        return Requirement(f"robotpy{extras}=={self.robotpy_version}")
 
     #: Requirements for
     requires: typing.List[Requirement] = dataclasses.field(default_factory=list)
@@ -139,7 +150,7 @@ def load(
     if not pyproject_path.exists():
         if default_if_missing:
             return RobotPyProjectToml(
-                robotpy_requires=Requirement(f"robotpy=={robotpy_installed_version()}")
+                robotpy_version=Version(robotpy_installed_version())
             )
         if write_if_missing:
             write_default_pyproject(project_path)
@@ -175,13 +186,6 @@ def load(
     else:
         robotpy_extras = [str(robotpy_extras_any)]
 
-    # Construct the full requirement
-    robotpy_pkg = "robotpy"
-    if robotpy_extras:
-        extras_s = ",".join(robotpy_extras)
-        robotpy_pkg = f"robotpy[{extras_s}]"
-    robotpy_requires = Requirement(f"{robotpy_pkg}=={robotpy_version}")
-
     requires_any = robotpy_data.get("requires")
     if isinstance(requires_any, list):
         requires = []
@@ -192,7 +196,11 @@ def load(
     else:
         requires = []
 
-    return RobotPyProjectToml(robotpy_requires=robotpy_requires, requires=requires)
+    return RobotPyProjectToml(
+        robotpy_version=robotpy_version,
+        robotpy_extras=robotpy_extras,
+        requires=requires,
+    )
 
 
 def are_requirements_met(

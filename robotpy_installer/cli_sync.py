@@ -1,8 +1,11 @@
 import argparse
+import inspect
 import logging
 import os
 import pathlib
+import subprocess
 import sys
+import tempfile
 
 from packaging.version import Version
 
@@ -146,4 +149,24 @@ class Sync:
                 pip_args.append("--user")
             pip_args.extend(packages)
 
-            os.execv(sys.executable, pip_args)
+            # POSIX systems are easy, just execv and we're done
+            if sys.platform != "win32":
+                os.execv(sys.executable, pip_args)
+
+            with tempfile.NamedTemporaryFile("w", delete=False, suffix=".py") as fp:
+                fp.write(
+                    inspect.cleandoc(
+                        f"""
+                        import os, subprocess
+                        subprocess.run({pip_args!r})
+                        print()
+                        input("Install complete, press enter to continue")
+                        os.unlink(__file__)
+                    """
+                    )
+                )
+
+            print("pip is launching in a new window to complete the installation")
+            subprocess.Popen(
+                [sys.executable, fp.name], creationflags=subprocess.CREATE_NEW_CONSOLE
+            )

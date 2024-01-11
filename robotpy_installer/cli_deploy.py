@@ -15,7 +15,7 @@ import typing
 
 from os.path import join, splitext
 
-from . import pyproject, sshcontroller
+from . import pyproject, roborio_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
@@ -327,6 +327,10 @@ class Deploy:
         python_exists = False
         requirements_installed = False
 
+        # does c++/java exist
+        with wrap_ssh_error("removing c++/java user programs"):
+            cpp_java_exists = roborio_utils.uninstall_cpp_java_lvuser(ssh)
+
         # does python exist
         with wrap_ssh_error("checking if python exists"):
             python_exists = (
@@ -370,7 +374,7 @@ class Deploy:
         if force_install:
             requirements_installed = False
 
-        if not python_exists or not requirements_installed:
+        if cpp_java_exists or not python_exists or not requirements_installed:
             if no_install and not python_exists:
                 raise Error(
                     "python3 was not found on the roboRIO\n"
@@ -385,6 +389,9 @@ class Deploy:
                 ignore_image_version=ignore_image_version,
                 ssh=ssh,
             ):
+                if cpp_java_exists:
+                    roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+
                 if not python_exists:
                     try:
                         installer.install_python()

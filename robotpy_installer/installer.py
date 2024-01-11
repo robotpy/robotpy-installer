@@ -73,6 +73,9 @@ class RobotpyInstaller:
         self._image_version_ok = False
         self._robot_pip_ok = False
 
+        self._webserver_stopped = False
+        self._webserver_needs_start = False
+
         if log_startup:
             logger.info("RobotPy Installer %s", __version__)
             logger.info("-> caching files at %s", self.cache_root)
@@ -111,6 +114,11 @@ class RobotpyInstaller:
                 self.show_mem_usage()
 
             yield
+
+            if self._webserver_needs_start:
+                self.ssh.exec_cmd("/etc/init.d/systemWebServer start")
+                self._webserver_needs_start = False
+                self._webserver_stopped = False
 
             if log_usage:
                 self.show_disk_space()
@@ -273,6 +281,19 @@ class RobotpyInstaller:
             total_kb / 1000.0,
             pct_free,
         )
+
+    def ensure_more_memory(self):
+        if self._webserver_stopped:
+            return
+
+        # This takes up a ton of memory and we need the memory...
+        with catch_ssh_error("Stopping NI webserver"):
+            result = self.ssh.exec_bash('[ -z "$(ps | grep NIWebServiceContainer)" ]')
+            if result.returncode != 0:
+                self.ssh.exec_cmd("/etc/init.d/systemWebServer stop")
+                self._webserver_needs_start = True
+
+        self._webserver_stopped = True
 
     def ensure_image_version(self, ignore_image_version: bool):
         if self._image_version_ok:

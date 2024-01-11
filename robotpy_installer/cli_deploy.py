@@ -402,6 +402,9 @@ class Deploy:
                         ) from e
 
                 if not requirements_installed:
+                    # pip is greedy
+                    installer.ensure_more_memory()
+
                     logger.info("Installing project requirements on RoboRIO:")
                     assert project is not None
                     packages = project.get_install_list()

@@ -290,7 +290,7 @@ class InstallerList:
             main_file=main_file,
             robot_or_team=robot,
             ignore_image_version=ignore_image_version,
-            log_disk_usage=False,
+            log_usage=False,
         ):
             installer.pip_list()
 

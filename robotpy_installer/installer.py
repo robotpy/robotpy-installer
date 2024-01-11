@@ -85,7 +85,7 @@ class RobotpyInstaller:
         main_file: pathlib.Path,
         robot_or_team: typing.Union[None, str, int] = None,
         ignore_image_version: bool = False,
-        log_disk_usage: bool = True,
+        log_usage: bool = True,
         no_resolve: bool = False,
         ssh: typing.Optional[SshController] = None,
     ):
@@ -106,13 +106,15 @@ class RobotpyInstaller:
 
             self.ensure_image_version(ignore_image_version)
 
-            if log_disk_usage:
+            if log_usage:
                 self.show_disk_space()
+                self.show_mem_usage()
 
             yield
 
-            if log_disk_usage:
+            if log_usage:
                 self.show_disk_space()
+                self.show_mem_usage()
 
             self._ssh = None
 
@@ -242,6 +244,35 @@ class RobotpyInstaller:
         logger.info("-> RoboRIO disk usage %s/%s (%s full)", used, size, pct)
 
         return size, used, pct
+
+    def show_mem_usage(self):
+        with catch_ssh_error("checking memory info"):
+            result = self.ssh.check_output("cat /proc/meminfo")
+
+        total_kb = 0
+        available_kb = 0
+        found = 0
+
+        for line in result.strip().splitlines():
+            if line.startswith("MemTotal:"):
+                total_kb = int(line.split()[1])
+                found += 1
+            elif line.startswith("MemAvailable"):
+                available_kb = int(line.split()[1])
+                found += 1
+
+            if found == 2:
+                break
+
+        used_kb = total_kb - available_kb
+        pct_free = (available_kb / float(total_kb)) * 100.0
+
+        logger.info(
+            "-> RoboRIO memory %.1fM/%.1fM (%.0f%% full)",
+            used_kb / 1000.0,
+            total_kb / 1000.0,
+            pct_free,
+        )
 
     def ensure_image_version(self, ignore_image_version: bool):
         if self._image_version_ok:

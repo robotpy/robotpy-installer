@@ -4,7 +4,9 @@ import os
 import pathlib
 import sys
 
-from .utils import handle_cli_error
+from packaging.version import Version
+
+from .utils import handle_cli_error, yesno
 
 
 from .installer import RobotpyInstaller
@@ -82,6 +84,27 @@ class Sync:
 
         # parse pyproject.toml to determine the requirements
         project = pyproject.load(project_path, write_if_missing=True)
+
+        # Get the local version and don't accidentally downgrade them
+        try:
+            local_robotpy_version = Version(pyproject.robotpy_installed_version())
+            if project.robotpy_version < local_robotpy_version:
+                logger.warning(
+                    "pyproject.toml robotpy version is older than currently installed version"
+                )
+                print()
+                msg = (
+                    f"Version currently installed: {local_robotpy_version}\n"
+                    f"Version in `pyproject.toml`: {project.robotpy_version}\n"
+                    "- Should we downgrade robotpy?"
+                )
+                if not yesno(msg):
+                    print(
+                        "Please update your pyproject.toml with the desired version of robotpy"
+                    )
+                    return False
+        except pyproject.NoRobotpyError:
+            pass
 
         packages = project.get_install_list()
 

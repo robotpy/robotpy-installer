@@ -382,6 +382,13 @@ class Deploy:
                     "- Use 'python -m robotpy installer install-python' to install python separately"
                 )
 
+            # This also will give more memory
+            ssh.exec_bash(
+                ". /etc/profile.d/frc-path.sh",
+                ". /etc/profile.d/natinst-path.sh",
+                roborio_utils.kill_robot_cmd,
+            )
+
             installer = RobotpyInstaller()
             with installer.connect_to_robot(
                 project_path=project_path,

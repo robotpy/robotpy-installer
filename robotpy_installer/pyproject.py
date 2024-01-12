@@ -158,6 +158,17 @@ def load(
     with open(pyproject_path, "rb") as fp:
         data = tomli.load(fp)
 
+    return _load(str(pyproject_path), data)
+
+
+def loads(content: str):
+    data = tomli.loads(content)
+    return _load("<string>", data)
+
+
+def _load(
+    pyproject_path: str, data: typing.Dict[str, typing.Any]
+) -> RobotPyProjectToml:
     try:
         robotpy_data = data["tool"]["robotpy"]
         if not isinstance(robotpy_data, dict):

@@ -158,6 +158,17 @@ def load(
     with open(pyproject_path, "rb") as fp:
         data = tomli.load(fp)
 
+    return _load(str(pyproject_path), data)
+
+
+def loads(content: str):
+    data = tomli.loads(content)
+    return _load("<string>", data)
+
+
+def _load(
+    pyproject_path: str, data: typing.Dict[str, typing.Any]
+) -> RobotPyProjectToml:
     try:
         robotpy_data = data["tool"]["robotpy"]
         if not isinstance(robotpy_data, dict):
@@ -205,22 +216,28 @@ def load(
 
 def are_requirements_met(
     pp: RobotPyProjectToml, packages: typing.Dict[str, str]
-) -> bool:
+) -> typing.Tuple[bool, typing.List[str]]:
+    unmet_requirements = []
+
     pv = {name: Version(v) for name, v in packages.items()}
     for req in [pp.robotpy_requires] + pp.requires:
         req_name = canonicalize_name(req.name)
-        met = False
+
+        empty_specifier = str(req.specifier) == ""
+
         for pkg, pkg_version in pv.items():
             if pkg == req_name:
-                met = pkg_version in req.specifier
+                if not empty_specifier and pkg_version not in req.specifier:
+                    unmet_requirements.append(f"{req} (found {pkg_version})")
                 break
+        else:
+            unmet_requirements.append(f"{req} (not found)")
 
-        if not met:
-            return False
-
-    return True
+    return not bool(unmet_requirements), unmet_requirements
 
 
-def are_local_requirements_met(pp: RobotPyProjectToml) -> bool:
+def are_local_requirements_met(
+    pp: RobotPyProjectToml,
+) -> typing.Tuple[bool, typing.List[str]]:
     packages = {dist.metadata["Name"]: dist.version for dist in distributions()}
     return are_requirements_met(pp, packages)

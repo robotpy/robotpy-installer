@@ -203,13 +203,20 @@ class Deploy:
                     f"{e}\n\nUse --no-install to ignore this error (not recommended)"
                 )
 
-            if not no_verify:
-                if not pyproject.are_local_requirements_met(project):
-                    packages = project.get_install_list()
+            logger.info("Robot project requirements:")
+            for package in project.get_install_list():
+                logger.info("- %s", package)
 
-                    logger.info("Robot project requirements:")
-                    for package in packages:
-                        logger.info("- %s", package)
+            if no_verify:
+                logger.warning("Not checking to see if they are installed on RoboRIO")
+            else:
+                requirements_met, desc = pyproject.are_local_requirements_met(project)
+                if not requirements_met:
+                    logger.warning(
+                        "The following project requirements were not installed locally:"
+                    )
+                    for msg in desc:
+                        logger.warning("- %s", msg)
 
                     msg = (
                         f"Locally installed packages do not match requirements in pyproject.toml\n"
@@ -359,11 +366,13 @@ class Deploy:
                     logger.debug("- %s (%s)", pkg, version)
 
                 assert project is not None
-                requirements_installed = pyproject.are_requirements_met(
+                requirements_installed, desc = pyproject.are_requirements_met(
                     project, pkgdata
                 )
                 if not requirements_installed:
                     logger.warning("Project requirements not installed on RoboRIO")
+                    for msg in desc:
+                        logger.warning("- %s", msg)
                 else:
                     logger.info("All project requirements already installed")
 

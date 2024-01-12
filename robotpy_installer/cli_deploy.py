@@ -343,16 +343,7 @@ class Deploy:
             if no_install:
                 requirements_installed = True
             elif not force_install:
-                # Use importlib.metadata instead of pip because it's way faster than pip
-                result = ssh.exec_cmd(
-                    "/usr/local/bin/python3 -c "
-                    "'from importlib.metadata import distributions;"
-                    "import json; import sys; "
-                    "json.dump({dist.name: dist.version for dist in distributions()},sys.stdout)'",
-                    get_output=True,
-                )
-                assert result.stdout is not None
-                pkgdata = json.loads(result.stdout)
+                pkgdata = roborio_utils.get_rio_py_packages(ssh)
 
                 logger.debug("Roborio has these packages installed:")
                 for pkg, version in pkgdata.items():

@@ -152,6 +152,39 @@ class InstallerUninstallPython:
             installer.uninstall_python()
 
 
+class InstallerUninstallRobotPy:
+    """
+    Uninstall RobotPy and user programs from a RoboRIO
+    """
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        _add_ssh_options(parser)
+        parser.add_argument("-y", "--yes", action="store_true", default=False)
+
+    @handle_cli_error
+    def run(
+        self,
+        project_path: pathlib.Path,
+        main_file: pathlib.Path,
+        ignore_image_version: bool,
+        robot: typing.Optional[str],
+        yes: bool,
+    ):
+        if not yes and not yesno(
+            "This will delete all python and user data! Continue?"
+        ):
+            return
+
+        installer = RobotpyInstaller()
+        with installer.connect_to_robot(
+            project_path=project_path,
+            main_file=main_file,
+            robot_or_team=robot,
+            ignore_image_version=ignore_image_version,
+        ):
+            installer.uninstall_robotpy()
+
+
 class InstallerUninstallJavaCpp:
     """
     Uninstall FRC Java/C++ programs from a RoboRIO
@@ -375,5 +408,6 @@ class Installer:
         ("list", InstallerList),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),
+        ("uninstall-robotpy", InstallerUninstallRobotPy),
         ("uninstall-frc-java-cpp", InstallerUninstallJavaCpp),
     ]

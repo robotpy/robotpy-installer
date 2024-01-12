@@ -1,4 +1,6 @@
+import json
 import logging
+import typing
 
 from .sshcontroller import SshController
 
@@ -67,3 +69,16 @@ def uninstall_cpp_java_admin(ssh: SshController):
         print_output=True,
         check=True,
     )
+
+
+def get_rio_py_packages(ssh: SshController) -> typing.Dict[str, str]:
+    # Use importlib.metadata instead of pip because it's way faster than pip
+    result = ssh.exec_cmd(
+        "/usr/local/bin/python3 -c "
+        "'from importlib.metadata import distributions;"
+        "import json; import sys; "
+        "json.dump({dist.name: dist.version for dist in distributions()},sys.stdout)'",
+        get_output=True,
+    )
+    assert result.stdout is not None
+    return json.loads(result.stdout)

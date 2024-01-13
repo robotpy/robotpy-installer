@@ -336,7 +336,7 @@ class Deploy:
 
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
-            cpp_java_exists = roborio_utils.uninstall_cpp_java_lvuser(ssh)
+            cpp_java_exists = not roborio_utils.uninstall_cpp_java_lvuser(ssh)
 
         # does python exist
         with wrap_ssh_error("checking if python exists"):

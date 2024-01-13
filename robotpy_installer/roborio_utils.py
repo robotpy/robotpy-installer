@@ -37,13 +37,11 @@ def uninstall_cpp_java_lvuser(ssh: SshController) -> bool:
         # Kill code only if cpp exe present
         f"[ ! -f {cpp_exe} ] || {kill_robot_cmd}",
         f"rm -rf {' '.join(rm_paths)}",
-        check=True,
-        print_output=True,
     )
 
     # Check if admin pieces need to run
     result = ssh.exec_bash(
-        '[ -z "$(opkg list-installed frc*-openjdk-*)" ]'
+        '[ -z "$(opkg list-installed frc*-openjdk-*)" ]',
         f'[ ! -d {third_party_libs} ] || [ -z "$(ls /usr/local/frc/third-party/lib)" ]',
         # This is copied with admin privs, can't delete as lvuser
         f"[ ! -d {static_deploy} ]",
@@ -58,7 +56,7 @@ def uninstall_cpp_java_admin(ssh: SshController):
 
     logger.info("Clearing FRC C++/Java program support")
 
-    rm_paths = (third_party_libs,)
+    rm_paths = (third_party_libs, static_deploy)
 
     ssh.exec_bash(
         # Remove java ipk

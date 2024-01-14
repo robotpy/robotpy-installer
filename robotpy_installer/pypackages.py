@@ -73,6 +73,32 @@ def get_local_packages() -> Packages:
     }
 
 
+def get_pip_cache_packages(
+    cache_root: pathlib.Path,
+) -> Packages:
+    """
+    Iterates over the pip cache and returns dict of packages
+    """
+
+    packages: Packages = {}
+
+    for f in (cache_root / "pip_cache").iterdir():
+        if f.suffix == ".whl":
+            try:
+                name, version, _, _ = parse_wheel_filename(f.name)
+                packages.setdefault(name, []).append(version)
+            except InvalidWheelFilename:
+                pass
+        elif f.suffix in (".gz", ".zip"):
+            try:
+                name, version = parse_sdist_filename(f.name)
+                packages.setdefault(name, []).append(version)
+            except InvalidSdistFilename:
+                pass
+
+    return packages
+
+
 def make_packages(
     packages: typing.Mapping[str, typing.Union[typing.List[str], str]]
 ) -> Packages:

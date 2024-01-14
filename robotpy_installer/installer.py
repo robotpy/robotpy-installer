@@ -10,7 +10,7 @@ import sys
 from urllib.parse import urlparse
 import typing
 
-from os.path import basename
+from os.path import basename, exists
 
 from .version import version as __version__
 from . import roborio_utils
@@ -573,7 +573,13 @@ class RobotpyInstaller:
             requirements,
         )
 
-        pip_args.extend(packages)
+        for package in packages:
+            if package.endswith(".whl") and exists(package):
+                fname = basename(package)
+                cache_server.add_mapping(f"/extra/{fname}", package)
+                pip_args.append(f"http://localhost:{cache_server.port}/extra/{fname}")
+            else:
+                pip_args.append(package)
 
         try:
             self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)

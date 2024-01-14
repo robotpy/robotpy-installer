@@ -15,7 +15,7 @@ import typing
 
 from os.path import join, splitext
 
-from . import pyproject, roborio_utils, sshcontroller
+from . import pypackages, pyproject, roborio_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
@@ -210,7 +210,7 @@ class Deploy:
             if no_verify:
                 logger.warning("Not checking to see if they are installed on RoboRIO")
             else:
-                requirements_met, desc = pyproject.are_local_requirements_met(project)
+                requirements_met, desc = project.are_local_requirements_met()
                 if not requirements_met:
                     logger.warning(
                         "The following project requirements were not installed locally:"
@@ -219,10 +219,11 @@ class Deploy:
                         logger.warning("- %s", msg)
 
                     msg = (
-                        f"Locally installed packages do not match requirements in pyproject.toml\n"
+                        f"Locally installed packages do not match requirements in pyproject.toml (see above)\n"
                         "- If pyproject.toml has older versions, update it to newer versions\n"
-                        "- If you have older versions installed locally, use 'python -m robotpy sync' to update your local install\n"
-                        "- You can also specify --no-verify to ignore this error"
+                        "- If you have missing packages or older versions installed locally, use\n"
+                        "  'python -m robotpy sync' to update your local install\n"
+                        "- You can also specify --no-verify to ignore this error (not recommended)"
                     )
                     raise Error(msg)
 
@@ -357,8 +358,9 @@ class Deploy:
                     logger.debug("- %s (%s)", pkg, version)
 
                 assert project is not None
-                requirements_installed, desc = pyproject.are_requirements_met(
-                    project, pkgdata
+                requirements_installed, desc = project.are_requirements_met(
+                    pypackages.make_packages(pkgdata),
+                    pypackages.roborio_env(),
                 )
                 if not requirements_installed:
                     logger.warning("Project requirements not installed on RoboRIO")

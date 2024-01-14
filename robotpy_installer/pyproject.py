@@ -1,14 +1,15 @@
 import dataclasses
-from importlib.metadata import distributions, metadata, PackageNotFoundError
+from importlib.metadata import metadata, PackageNotFoundError
 import inspect
 import pathlib
 import typing
 
 from packaging.requirements import Requirement
-from packaging.utils import canonicalize_name
 from packaging.version import Version, InvalidVersion
 import tomli
 
+from . import pypackages
+from .pypackages import Packages, Env
 from .errors import Error
 
 
@@ -63,8 +64,31 @@ class RobotPyProjectToml:
             extras = ""
         return Requirement(f"robotpy{extras}=={self.robotpy_version}")
 
-    #: Requirements for
+    #: User's custom requirements
     requires: typing.List[Requirement] = dataclasses.field(default_factory=list)
+
+    def are_requirements_met(
+        self,
+        packages: Packages,
+        env: Env,
+    ) -> typing.Tuple[bool, typing.List[str]]:
+        """
+        Determines if the set of packages meets the requirements specified by
+        this project
+        """
+        return pypackages.are_requirements_met(
+            [self.robotpy_requires] + self.requires, packages, env
+        )
+
+    def are_local_requirements_met(
+        self,
+    ) -> typing.Tuple[bool, typing.List[str]]:
+        """
+        Determines if the locally installed packages meets the requirements
+        specified by this project
+        """
+
+        return self.are_requirements_met(pypackages.get_local_packages(), {})
 
     def get_install_list(self) -> typing.List[str]:
         packages = [str(self.robotpy_requires)]
@@ -212,32 +236,3 @@ def _load(
         robotpy_extras=robotpy_extras,
         requires=requires,
     )
-
-
-def are_requirements_met(
-    pp: RobotPyProjectToml, packages: typing.Dict[str, str]
-) -> typing.Tuple[bool, typing.List[str]]:
-    unmet_requirements = []
-
-    pv = {name: Version(v) for name, v in packages.items()}
-    for req in [pp.robotpy_requires] + pp.requires:
-        req_name = canonicalize_name(req.name)
-
-        empty_specifier = str(req.specifier) == ""
-
-        for pkg, pkg_version in pv.items():
-            if pkg == req_name:
-                if not empty_specifier and pkg_version not in req.specifier:
-                    unmet_requirements.append(f"{req} (found {pkg_version})")
-                break
-        else:
-            unmet_requirements.append(f"{req} (not found)")
-
-    return not bool(unmet_requirements), unmet_requirements
-
-
-def are_local_requirements_met(
-    pp: RobotPyProjectToml,
-) -> typing.Tuple[bool, typing.List[str]]:
-    packages = {dist.metadata["Name"]: dist.version for dist in distributions()}
-    return are_requirements_met(pp, packages)

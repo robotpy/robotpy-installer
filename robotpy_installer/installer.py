@@ -4,6 +4,7 @@ import io
 import logging
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 from urllib.parse import urlparse
@@ -575,7 +576,7 @@ class RobotpyInstaller:
         pip_args.extend(packages)
 
         try:
-            self.ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
+            self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
         except SshExecError as e:
             raise PipInstallError(f"installing packages: {e}") from e
 
@@ -612,7 +613,7 @@ class RobotpyInstaller:
         pip_args.extend(packages)
 
         with catch_ssh_error("uninstalling packages"):
-            self.ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
+            self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
 
 
 def _make_ssl_context(use_certifi: bool):

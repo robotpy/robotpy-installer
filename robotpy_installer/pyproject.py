@@ -71,12 +71,20 @@ class RobotPyProjectToml:
         self,
         packages: Packages,
         env: Env,
+        extra_resolver: pypackages.ExtraResolver,
     ) -> typing.Tuple[bool, typing.List[str]]:
         """
         Determines if the set of packages meets the requirements specified by
         this project
         """
-        return pypackages.are_requirements_met(self.get_install_reqs(), packages, env)
+        reqs = self.get_install_reqs()
+        assert reqs and reqs[0].name == "robotpy"
+        robotpy_req = reqs[0]
+
+        # Extra requirements from the extra resolver
+        reqs.extend(extra_resolver(robotpy_req, env))
+
+        return pypackages.are_requirements_met(reqs, packages, env)
 
     def are_local_requirements_met(
         self,
@@ -86,7 +94,9 @@ class RobotPyProjectToml:
         specified by this project
         """
 
-        return self.are_requirements_met(pypackages.get_local_packages(), {})
+        return self.are_requirements_met(
+            pypackages.get_local_packages(), {}, pypackages.extra_resolver_local
+        )
 
     def get_install_reqs(self) -> typing.List[Requirement]:
         return [self.robotpy_requires] + self.requires

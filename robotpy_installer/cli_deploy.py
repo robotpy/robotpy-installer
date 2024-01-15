@@ -134,6 +134,8 @@ class Deploy:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
+        self._packages_in_cache: typing.Optional[pypackages.Packages] = None
+
     @handle_cli_error
     def run(
         self,
@@ -322,6 +324,13 @@ class Deploy:
 
         return True
 
+    def _get_cached_packages(self, installer: RobotpyInstaller) -> pypackages.Packages:
+        if self._packages_in_cache is None:
+            self._packages_in_cache = pypackages.get_pip_cache_packages(
+                installer.cache_root
+            )
+        return self._packages_in_cache
+
     def _ensure_requirements(
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
@@ -334,6 +343,8 @@ class Deploy:
     ):
         python_exists = False
         requirements_installed = False
+
+        installer = RobotpyInstaller()
 
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
@@ -361,6 +372,9 @@ class Deploy:
                 requirements_installed, desc = project.are_requirements_met(
                     pypackages.make_packages(pkgdata),
                     pypackages.roborio_env(),
+                    pypackages.make_cache_extra_resolver(
+                        self._get_cached_packages(installer)
+                    ),
                 )
                 if not requirements_installed:
                     logger.warning("Project requirements not installed on RoboRIO")
@@ -391,7 +405,6 @@ class Deploy:
                 roborio_utils.kill_robot_cmd,
             )
 
-            installer = RobotpyInstaller()
             with installer.connect_to_robot(
                 project_path=project_path,
                 main_file=main_file,
@@ -421,9 +434,11 @@ class Deploy:
                         logger.info("- %s", package)
 
                     # Check if everything is in the cache before doing the install
-                    cached = pypackages.get_pip_cache_packages(installer.cache_root)
+                    cached = self._get_cached_packages(installer)
                     ok, missing = project.are_requirements_met(
-                        cached, pypackages.roborio_env()
+                        cached,
+                        pypackages.roborio_env(),
+                        pypackages.make_cache_extra_resolver(cached),
                     )
                     if not ok:
                         errmsg = ["Project requirements not found in download cache!"]

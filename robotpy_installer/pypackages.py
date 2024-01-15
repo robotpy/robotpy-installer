@@ -2,10 +2,12 @@
 Various python packaging related logic
 """
 
-from importlib.metadata import distributions
+from importlib.metadata import distributions, metadata, PackageNotFoundError
 import pathlib
 import typing
+import zipfile
 
+from packaging.metadata import Metadata
 from packaging.requirements import Requirement
 from packaging.utils import (
     canonicalize_name,
@@ -21,6 +23,8 @@ from packaging.version import Version
 Env = typing.Dict[str, str]
 
 Packages = typing.Dict[NormalizedName, typing.List[Version]]
+
+ExtraResolver = typing.Callable[[Requirement, Env], typing.List[Requirement]]
 
 
 def are_requirements_met(
@@ -42,6 +46,7 @@ def are_requirements_met(
             continue
 
         req_name = canonicalize_name(req.name)
+        req.specifier.prereleases = True
 
         empty_specifier = str(req.specifier) == ""
 
@@ -63,6 +68,81 @@ def are_requirements_met(
     return not bool(unmet_requirements), unmet_requirements
 
 
+def evaluate_extras_markers(
+    reqs: typing.List[Requirement], env: Env, extras: typing.Iterable[str]
+) -> typing.List[Requirement]:
+    env = env.copy()
+    matched = []
+    for req in reqs:
+        for extra in extras:
+            env["extra"] = extra
+            if req.marker is None or req.marker.evaluate(env):
+                # marker is no longer needed
+                req.marker = None
+                matched.append(req)
+                break
+    return matched
+
+
+def extra_resolver_local(req: Requirement, env: Env) -> typing.List[Requirement]:
+    """
+    Given a requirement, resolves its extras using the version of the
+    requirement installed locally. Ignores its markers.
+
+    Fails silently.
+    """
+    if not req.extras:
+        return []
+
+    try:
+        m = metadata(req.name)
+    except PackageNotFoundError:
+        return []
+
+    extra_reqs = []
+    requires_dist = m.get_all("Requires-Dist")
+    if requires_dist:
+        extra_reqs = evaluate_extras_markers(
+            [Requirement(r) for r in requires_dist], env, req.extras
+        )
+
+    return extra_reqs
+
+
+def make_cache_extra_resolver(packages: Packages) -> ExtraResolver:
+    """
+    :param packages: The list of packages in the cache as returned by
+                     get_pip_cache_packages
+    """
+
+    def _resolver(req: Requirement, env: Env) -> typing.List[Requirement]:
+        if not req.extras:
+            return []
+
+        env = env.copy()
+        env["extra"] = ",".join(req.extras)
+
+        # Find the requirement
+        creqs = packages.get(canonicalize_name(req.name))
+        if creqs is None:
+            raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
+
+        req.specifier.prereleases = True
+        for creq in sorted(creqs, reverse=True):
+            if req.specifier is None or creq in req.specifier:
+                break
+        else:
+            raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
+
+        if not isinstance(creq, CacheVersion):
+            raise ValueError("internal error")
+
+        m = metadata_from_wheel(creq.file_path)
+        return evaluate_extras_markers(m.requires_dist, env, req.extras)
+
+    return _resolver
+
+
 def get_local_packages() -> Packages:
     """
     Iterates over locally installed packages and returns dict of versions
@@ -71,6 +151,12 @@ def get_local_packages() -> Packages:
         canonicalize_name(dist.metadata["Name"]): [Version(dist.version)]
         for dist in distributions()
     }
+
+
+class CacheVersion(Version):
+    def __init__(self, version: str, file_path: pathlib.Path) -> None:
+        super().__init__(version)
+        self.file_path = file_path
 
 
 def get_pip_cache_packages(
@@ -86,13 +172,13 @@ def get_pip_cache_packages(
         if f.suffix == ".whl":
             try:
                 name, version, _, _ = parse_wheel_filename(f.name)
-                packages.setdefault(name, []).append(version)
+                packages.setdefault(name, []).append(CacheVersion(str(version), f))
             except InvalidWheelFilename:
                 pass
         elif f.suffix in (".gz", ".zip"):
             try:
                 name, version = parse_sdist_filename(f.name)
-                packages.setdefault(name, []).append(version)
+                packages.setdefault(name, []).append(CacheVersion(str(version), f))
             except InvalidSdistFilename:
                 pass
 
@@ -111,6 +197,17 @@ def make_packages(
         else [Version(v) for v in version]
         for name, version in packages.items()
     }
+
+
+def metadata_from_wheel(whl_path: pathlib.Path) -> Metadata:
+    """
+    Retrieves the metadata from a wheel file
+    """
+    name, version, _, _ = parse_wheel_filename(whl_path.name)
+    with zipfile.ZipFile(whl_path) as zfp:
+        m = zfp.read(f"{name}-{version}.dist-info/METADATA")
+
+    return Metadata.from_email(m, validate=False)
 
 
 def roborio_env() -> Env:

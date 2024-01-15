@@ -1,10 +1,17 @@
 import inspect
+import typing
 
 from robotpy_installer import pyproject, pypackages
+
+from packaging.requirements import Requirement
 
 
 def load_project(content: str) -> pyproject.RobotPyProjectToml:
     return pyproject.loads(inspect.cleandoc(content))
+
+
+def null_resolver(req: Requirement, env: pypackages.Env) -> typing.List[Requirement]:
+    return []
 
 
 def test_ok():
@@ -15,7 +22,9 @@ def test_ok():
     """
     )
     installed = pypackages.make_packages({"robotpy": "2024.1.1.2"})
-    assert project.are_requirements_met(installed, pypackages.roborio_env()) == (
+    assert project.are_requirements_met(
+        installed, pypackages.roborio_env(), null_resolver
+    ) == (
         True,
         [],
     )
@@ -29,7 +38,9 @@ def test_older_fail():
     """
     )
     installed = pypackages.make_packages({"robotpy": "2024.1.1.0"})
-    assert project.are_requirements_met(installed, pypackages.roborio_env()) == (
+    assert project.are_requirements_met(
+        installed, pypackages.roborio_env(), null_resolver
+    ) == (
         False,
         ["robotpy==2024.1.1.2 (found 2024.1.1.0)"],
     )
@@ -43,7 +54,9 @@ def test_older_and_newer_fail():
     """
     )
     installed = pypackages.make_packages({"robotpy": ["2024.1.1.0", "2024.1.1.4"]})
-    assert project.are_requirements_met(installed, pypackages.roborio_env()) == (
+    assert project.are_requirements_met(
+        installed, pypackages.roborio_env(), null_resolver
+    ) == (
         False,
         ["robotpy==2024.1.1.2 (found 2024.1.1.0, 2024.1.1.4)"],
     )
@@ -64,7 +77,9 @@ def test_beta_empty_req():
         {"robotpy": "2024.1.1.2", "robotpy-commands-v2": "2024.0.0b4"}
     )
 
-    assert project.are_requirements_met(installed, pypackages.roborio_env()) == (
+    assert project.are_requirements_met(
+        installed, pypackages.roborio_env(), null_resolver
+    ) == (
         True,
         [],
     )
@@ -86,7 +101,9 @@ def test_env_marker():
         {"robotpy": "2024.1.1.2", "robotpy-opencv": "2024.0.0"}
     )
 
-    assert project.are_requirements_met(installed, pypackages.roborio_env()) == (
+    assert project.are_requirements_met(
+        installed, pypackages.roborio_env(), null_resolver
+    ) == (
         True,
         [],
     )

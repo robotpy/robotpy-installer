@@ -28,6 +28,34 @@ def _add_ssh_options(parser: argparse.ArgumentParser):
     )
 
 
+class _BasicInstallerCmd:
+    log_usage = True
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        _add_ssh_options(parser)
+
+    @handle_cli_error
+    def run(
+        self,
+        project_path: pathlib.Path,
+        main_file: pathlib.Path,
+        ignore_image_version: bool,
+        robot: typing.Optional[str],
+    ):
+        installer = RobotpyInstaller()
+        with installer.connect_to_robot(
+            project_path=project_path,
+            main_file=main_file,
+            robot_or_team=robot,
+            ignore_image_version=ignore_image_version,
+            log_usage=self.log_usage,
+        ):
+            self.on_run(installer)
+
+    def on_run(self, installer: RobotpyInstaller):
+        raise NotImplementedError()
+
+
 #
 # installer cache
 #
@@ -100,56 +128,22 @@ class InstallerDownloadPython:
         installer.download_python(use_certifi)
 
 
-class InstallerInstallPython:
+class InstallerInstallPython(_BasicInstallerCmd):
     """
     Installs Python on a RoboRIO
     """
 
-    def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
-
-    @handle_cli_error
-    def run(
-        self,
-        project_path: pathlib.Path,
-        main_file: pathlib.Path,
-        ignore_image_version: bool,
-        robot: typing.Optional[str],
-    ):
-        installer = RobotpyInstaller()
-        with installer.connect_to_robot(
-            project_path=project_path,
-            main_file=main_file,
-            robot_or_team=robot,
-            ignore_image_version=ignore_image_version,
-        ):
-            installer.install_python()
+    def on_run(self, installer: RobotpyInstaller):
+        installer.install_python()
 
 
-class InstallerUninstallPython:
+class InstallerUninstallPython(_BasicInstallerCmd):
     """
     Uninstall Python from a RoboRIO
     """
 
-    def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
-
-    @handle_cli_error
-    def run(
-        self,
-        project_path: pathlib.Path,
-        main_file: pathlib.Path,
-        ignore_image_version: bool,
-        robot: typing.Optional[str],
-    ):
-        installer = RobotpyInstaller()
-        with installer.connect_to_robot(
-            project_path=project_path,
-            main_file=main_file,
-            robot_or_team=robot,
-            ignore_image_version=ignore_image_version,
-        ):
-            installer.uninstall_python()
+    def on_run(self, installer: RobotpyInstaller):
+        installer.uninstall_python()
 
 
 class InstallerUninstallRobotPy:
@@ -185,31 +179,14 @@ class InstallerUninstallRobotPy:
             installer.uninstall_robotpy()
 
 
-class InstallerUninstallJavaCpp:
+class InstallerUninstallJavaCpp(_BasicInstallerCmd):
     """
     Uninstall FRC Java/C++ programs from a RoboRIO
     """
 
-    def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
-
-    @handle_cli_error
-    def run(
-        self,
-        project_path: pathlib.Path,
-        main_file: pathlib.Path,
-        ignore_image_version: bool,
-        robot: typing.Optional[str],
-    ):
-        installer = RobotpyInstaller()
-        with installer.connect_to_robot(
-            project_path=project_path,
-            main_file=main_file,
-            robot_or_team=robot,
-            ignore_image_version=ignore_image_version,
-        ):
-            if not roborio_utils.uninstall_cpp_java_lvuser(installer.ssh):
-                roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+    def on_run(self, installer: RobotpyInstaller):
+        if not roborio_utils.uninstall_cpp_java_lvuser(installer.ssh):
+            roborio_utils.uninstall_cpp_java_admin(installer.ssh)
 
 
 #
@@ -329,31 +306,57 @@ class InstallerInstall:
             )
 
 
-class InstallerList:
+class InstallerNiWebEnable(_BasicInstallerCmd):
+    """
+    Enables the NI web server and starts it
+    """
+
+    def on_run(self, installer: RobotpyInstaller):
+        installer.ssh.exec_bash(
+            "update-rc.d -f systemWebServer defaults",
+            "/etc/init.d/systemWebServer start",
+            check=True,
+            print_output=True,
+        )
+
+
+class InstallerNiWebDisable(_BasicInstallerCmd):
+    """
+    Stops the NI web server and disables it from starting
+    """
+
+    def on_run(self, installer: RobotpyInstaller):
+        installer.ssh.exec_bash(
+            "/etc/init.d/systemWebServer stop",
+            "update-rc.d -f systemWebServer remove",
+            check=True,
+            print_output=True,
+        )
+
+
+class InstallerNiWeb:
+    """
+    Manipulates the NI web server
+
+    The NI web server on the RoboRIO takes up a lot of memory, and isn't
+    used for very much. Use these commands to enable or disable it.
+    """
+
+    subcommands = [
+        ("enable", InstallerNiWebEnable),
+        ("disable", InstallerNiWebDisable),
+    ]
+
+
+class InstallerList(_BasicInstallerCmd):
     """
     Lists Python packages present on RoboRIO
     """
 
-    def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
+    log_usage = False
 
-    @handle_cli_error
-    def run(
-        self,
-        project_path: pathlib.Path,
-        main_file: pathlib.Path,
-        ignore_image_version: bool,
-        robot: typing.Optional[str],
-    ):
-        installer = RobotpyInstaller()
-        with installer.connect_to_robot(
-            project_path=project_path,
-            main_file=main_file,
-            robot_or_team=robot,
-            ignore_image_version=ignore_image_version,
-            log_usage=False,
-        ):
-            installer.pip_list()
+    def on_run(self, installer: RobotpyInstaller):
+        installer.pip_list()
 
 
 class InstallerUninstall:
@@ -406,6 +409,7 @@ class Installer:
         ("install", InstallerInstall),
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
+        ("niweb", InstallerNiWeb),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),
         ("uninstall-robotpy", InstallerUninstallRobotPy),

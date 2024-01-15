@@ -4,12 +4,13 @@ import io
 import logging
 import pathlib
 import re
+import shlex
 import subprocess
 import sys
 from urllib.parse import urlparse
 import typing
 
-from os.path import basename
+from os.path import basename, exists
 
 from .version import version as __version__
 from . import roborio_utils
@@ -572,10 +573,16 @@ class RobotpyInstaller:
             requirements,
         )
 
-        pip_args.extend(packages)
+        for package in packages:
+            if package.endswith(".whl") and exists(package):
+                fname = basename(package)
+                cache_server.add_mapping(f"/extra/{fname}", package)
+                pip_args.append(f"http://localhost:{cache_server.port}/extra/{fname}")
+            else:
+                pip_args.append(package)
 
         try:
-            self.ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
+            self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
         except SshExecError as e:
             raise PipInstallError(f"installing packages: {e}") from e
 
@@ -612,7 +619,7 @@ class RobotpyInstaller:
         pip_args.extend(packages)
 
         with catch_ssh_error("uninstalling packages"):
-            self.ssh.exec_cmd(" ".join(pip_args), check=True, print_output=True)
+            self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
 
 
 def _make_ssl_context(use_certifi: bool):

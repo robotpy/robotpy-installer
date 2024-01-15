@@ -420,6 +420,21 @@ class Deploy:
                     for package in packages:
                         logger.info("- %s", package)
 
+                    # Check if everything is in the cache before doing the install
+                    cached = pypackages.get_pip_cache_packages(installer.cache_root)
+                    ok, missing = project.are_requirements_met(
+                        cached, pypackages.roborio_env()
+                    )
+                    if not ok:
+                        errmsg = ["Project requirements not found in download cache!"]
+                        errmsg.extend([f"- {msg}" for msg in missing])
+                        errmsg += [
+                            "",
+                            "Run 'python -m robotpy sync' to download your project requirements",
+                            "from the internet (or specify --no-install to not attempt installation).",
+                        ]
+                        raise Error("\n".join(errmsg))
+
                     try:
                         installer.pip_install(False, False, False, False, [], packages)
                     except PipInstallError as e:

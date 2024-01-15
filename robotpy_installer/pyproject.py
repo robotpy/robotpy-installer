@@ -76,9 +76,7 @@ class RobotPyProjectToml:
         Determines if the set of packages meets the requirements specified by
         this project
         """
-        return pypackages.are_requirements_met(
-            [self.robotpy_requires] + self.requires, packages, env
-        )
+        return pypackages.are_requirements_met(self.get_install_reqs(), packages, env)
 
     def are_local_requirements_met(
         self,
@@ -90,10 +88,11 @@ class RobotPyProjectToml:
 
         return self.are_requirements_met(pypackages.get_local_packages(), {})
 
+    def get_install_reqs(self) -> typing.List[Requirement]:
+        return [self.robotpy_requires] + self.requires
+
     def get_install_list(self) -> typing.List[str]:
-        packages = [str(self.robotpy_requires)]
-        packages.extend([str(req) for req in self.requires])
-        return packages
+        return list(map(str, self.get_install_reqs()))
 
 
 def robotpy_installed_version() -> str:

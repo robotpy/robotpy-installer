@@ -306,6 +306,48 @@ class InstallerInstall:
             )
 
 
+class InstallerNiWebEnable(_BasicInstallerCmd):
+    """
+    Enables the NI web server and starts it
+    """
+
+    def on_run(self, installer: RobotpyInstaller):
+        installer.ssh.exec_bash(
+            "update-rc.d -f systemWebServer defaults",
+            "/etc/init.d/systemWebServer start",
+            check=True,
+            print_output=True,
+        )
+
+
+class InstallerNiWebDisable(_BasicInstallerCmd):
+    """
+    Stops the NI web server and disables it from starting
+    """
+
+    def on_run(self, installer: RobotpyInstaller):
+        installer.ssh.exec_bash(
+            "/etc/init.d/systemWebServer stop",
+            "update-rc.d -f systemWebServer remove",
+            check=True,
+            print_output=True,
+        )
+
+
+class InstallerNiWeb:
+    """
+    Manipulates the NI web server
+
+    The NI web server on the RoboRIO takes up a lot of memory, and isn't
+    used for very much. Use these commands to enable or disable it.
+    """
+
+    subcommands = [
+        ("enable", InstallerNiWebEnable),
+        ("disable", InstallerNiWebDisable),
+    ]
+
+
 class InstallerList(_BasicInstallerCmd):
     """
     Lists Python packages present on RoboRIO
@@ -367,6 +409,7 @@ class Installer:
         ("install", InstallerInstall),
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
+        ("niweb", InstallerNiWeb),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),
         ("uninstall-robotpy", InstallerUninstallRobotPy),

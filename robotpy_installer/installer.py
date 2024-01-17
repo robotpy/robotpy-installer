@@ -581,6 +581,9 @@ class RobotpyInstaller:
             else:
                 pip_args.append(package)
 
+        # pip is greedy
+        self.ensure_more_memory()
+
         try:
             self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
         except SshExecError as e:
@@ -592,6 +595,9 @@ class RobotpyInstaller:
 
     def pip_list(self):
         self.ensure_robot_pip()
+
+        # pip is greedy
+        self.ensure_more_memory()
 
         with catch_ssh_error("pip3 list"):
             self.ssh.exec_cmd(
@@ -617,6 +623,9 @@ class RobotpyInstaller:
             "--yes",
         ]
         pip_args.extend(packages)
+
+        # pip is greedy
+        self.ensure_more_memory()
 
         with catch_ssh_error("uninstalling packages"):
             self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)

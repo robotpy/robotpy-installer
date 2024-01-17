@@ -15,7 +15,7 @@ import typing
 
 from os.path import join, splitext
 
-from . import pyproject, roborio_utils, sshcontroller
+from . import pypackages, pyproject, roborio_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
@@ -111,6 +111,13 @@ class Deploy:
         )
 
         parser.add_argument(
+            "--no-uninstall",
+            action="store_true",
+            default=False,
+            help="Do not uninstall packages from the RoboRIO",
+        )
+
+        parser.add_argument(
             "--large",
             action="store_true",
             default=False,
@@ -134,6 +141,9 @@ class Deploy:
             help="If specified, don't do a DNS lookup, allow ssh et al to do it instead",
         )
 
+        self._packages_in_cache: typing.Optional[pypackages.Packages] = None
+        self._robot_packages: typing.Optional[pypackages.Packages] = None
+
     @handle_cli_error
     def run(
         self,
@@ -148,6 +158,7 @@ class Deploy:
         ignore_image_version: bool,
         no_install: bool,
         no_verify: bool,
+        no_uninstall: bool,
         force_install: bool,
         large: bool,
         robot: typing.Optional[str],
@@ -210,7 +221,7 @@ class Deploy:
             if no_verify:
                 logger.warning("Not checking to see if they are installed on RoboRIO")
             else:
-                requirements_met, desc = pyproject.are_local_requirements_met(project)
+                requirements_met, desc = project.are_local_requirements_met()
                 if not requirements_met:
                     logger.warning(
                         "The following project requirements were not installed locally:"
@@ -219,10 +230,11 @@ class Deploy:
                         logger.warning("- %s", msg)
 
                     msg = (
-                        f"Locally installed packages do not match requirements in pyproject.toml\n"
+                        f"Locally installed packages do not match requirements in pyproject.toml (see above)\n"
                         "- If pyproject.toml has older versions, update it to newer versions\n"
-                        "- If you have older versions installed locally, use 'python -m robotpy sync' to update your local install\n"
-                        "- You can also specify --no-verify to ignore this error"
+                        "- If you have missing packages or older versions installed locally, use\n"
+                        "  'python -m robotpy sync' to update your local install\n"
+                        "- You can also specify --no-verify to ignore this error (not recommended)"
                     )
                     raise Error(msg)
 
@@ -242,6 +254,7 @@ class Deploy:
                 ignore_image_version,
                 no_install,
                 force_install,
+                no_uninstall,
             )
 
             if not self._do_deploy(ssh, debug, nc, nc_ds, robot_filename, project_path):
@@ -321,6 +334,21 @@ class Deploy:
 
         return True
 
+    def _get_cached_packages(self, installer: RobotpyInstaller) -> pypackages.Packages:
+        if self._packages_in_cache is None:
+            self._packages_in_cache = pypackages.get_pip_cache_packages(
+                installer.cache_root
+            )
+        return self._packages_in_cache
+
+    def _get_robot_packages(
+        self, ssh: sshcontroller.SshController
+    ) -> pypackages.Packages:
+        if self._robot_packages is None:
+            rio_packages = roborio_utils.get_rio_py_packages(ssh)
+            self._robot_packages = pypackages.make_packages(rio_packages)
+        return self._robot_packages
+
     def _ensure_requirements(
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
@@ -330,9 +358,12 @@ class Deploy:
         ignore_image_version: bool,
         no_install: bool,
         force_install: bool,
+        no_uninstall: bool,
     ):
         python_exists = False
         requirements_installed = False
+
+        installer = RobotpyInstaller()
 
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
@@ -350,15 +381,19 @@ class Deploy:
             if no_install:
                 requirements_installed = True
             elif not force_install:
-                pkgdata = roborio_utils.get_rio_py_packages(ssh)
+                pkgdata = self._get_robot_packages(ssh)
 
                 logger.debug("Roborio has these packages installed:")
                 for pkg, version in pkgdata.items():
-                    logger.debug("- %s (%s)", pkg, version)
+                    logger.debug("- %s (%s)", pkg, version[0])
 
                 assert project is not None
-                requirements_installed, desc = pyproject.are_requirements_met(
-                    project, pkgdata
+                requirements_installed, desc = project.are_requirements_met(
+                    pkgdata,
+                    pypackages.roborio_env(),
+                    pypackages.make_cache_extra_resolver(
+                        self._get_cached_packages(installer)
+                    ),
                 )
                 if not requirements_installed:
                     logger.warning("Project requirements not installed on RoboRIO")
@@ -373,6 +408,28 @@ class Deploy:
 
         if force_install:
             requirements_installed = False
+        elif python_exists and not requirements_installed:
+            # if this is a pre-existing robotpy install, warn the user
+            # before changing their rio
+            print(
+                "\n"
+                "Deployer has detected that the packages installed on your RoboRIO do not match\n"
+                "the requirements in pyproject.toml. The installer will now:\n"
+            )
+            if not no_uninstall:
+                prompt = "Continue with uninstall + install?"
+                print("* Uninstall ALL Python packages from the RoboRIO")
+            else:
+                prompt = "Continue with install?"
+
+            print(
+                "* Install required packages on the RoboRIO\n"
+                "\n"
+                "If you do not wish to do this, specify --no-install as a deploy argument, or answer 'n'.\n"
+            )
+
+            if not yesno(prompt):
+                requirements_installed = True
 
         if cpp_java_exists or not python_exists or not requirements_installed:
             if no_install and not python_exists:
@@ -389,7 +446,6 @@ class Deploy:
                 roborio_utils.kill_robot_cmd,
             )
 
-            installer = RobotpyInstaller()
             with installer.connect_to_robot(
                 project_path=project_path,
                 main_file=main_file,
@@ -409,12 +465,42 @@ class Deploy:
                         ) from e
 
                 if not requirements_installed:
-                    # pip is greedy
-                    installer.ensure_more_memory()
-
-                    logger.info("Installing project requirements on RoboRIO:")
                     assert project is not None
                     packages = project.get_install_list()
+
+                    # Check if everything is in the cache before doing the install
+                    cached = self._get_cached_packages(installer)
+                    ok, missing = project.are_requirements_met(
+                        cached,
+                        pypackages.roborio_env(),
+                        pypackages.make_cache_extra_resolver(cached),
+                    )
+                    if not ok:
+                        errmsg = ["Project requirements not found in download cache!"]
+                        errmsg.extend([f"- {msg}" for msg in missing])
+                        errmsg += [
+                            "",
+                            "Run 'python -m robotpy sync' to download your project requirements",
+                            "from the internet (or specify --no-install to not attempt installation).",
+                        ]
+                        raise Error("\n".join(errmsg))
+
+                    if not no_uninstall:
+                        logger.info(
+                            "Clearing existing packages on RoboRIO before install (specify --no-uninstall to not do this)"
+                        )
+                        # The user may have deleted something from the project
+                        # requirements so the only way to ensure the exact
+                        # environment is to first clear the environment.
+                        # - can't do a partial uninstall without completely
+                        #   resolving everything
+
+                        rio_packages = self._get_robot_packages(installer.ssh)
+                        installer.pip_uninstall(
+                            [p for p in rio_packages.keys() if p != "pip"]
+                        )
+
+                    logger.info("Installing project requirements on RoboRIO:")
                     for package in packages:
                         logger.info("- %s", package)
 

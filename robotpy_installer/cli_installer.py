@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import typing
 
-from . import roborio_utils
+from . import pypackages, roborio_utils
 from .utils import handle_cli_error
 
 from .installer import (
@@ -73,6 +73,21 @@ class InstallerCacheLocation:
         print(installer.cache_root)
 
 
+class InstallerCacheList:
+    """List python packages in cache"""
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        pass
+
+    @handle_cli_error
+    def run(self):
+        installer = RobotpyInstaller(log_startup=False)
+        packages = pypackages.get_pip_cache_packages(installer.cache_root)
+        for pkg in sorted(packages.keys()):
+            versions = map(str, sorted(packages[pkg]))
+            print(f"{pkg}: {' '.join(versions)}")
+
+
 class InstallerCacheRm:
     """Delete all cached files"""
 
@@ -99,6 +114,7 @@ class InstallerCache:
 
     subcommands = [
         ("location", InstallerCacheLocation),
+        ("list", InstallerCacheList),
         ("rm", InstallerCacheRm),
     ]
 

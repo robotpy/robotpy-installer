@@ -496,9 +496,9 @@ class Deploy:
                         #   resolving everything
 
                         rio_packages = self._get_robot_packages(installer.ssh)
-                        installer.pip_uninstall(
-                            [p for p in rio_packages.keys() if p != "pip"]
-                        )
+                        to_uninstall = [p for p in rio_packages.keys() if p != "pip"]
+                        if to_uninstall:
+                            installer.pip_uninstall(to_uninstall)
 
                     logger.info("Installing project requirements on RoboRIO:")
                     for package in packages:

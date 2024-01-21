@@ -132,7 +132,7 @@ def write_default_pyproject(
     if not provides_extra:
         extras = ""
     else:
-        extras = "\n    # ".join(f'"{extra}"' for extra in sorted(provides_extra))
+        extras = "\n    # ".join(f'"{extra}",' for extra in sorted(provides_extra))
 
     content = inspect.cleandoc(
         f"""

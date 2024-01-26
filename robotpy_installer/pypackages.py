@@ -192,9 +192,11 @@ def make_packages(
     For unit testing
     """
     return {
-        canonicalize_name(name): [Version(version)]
-        if isinstance(version, str)
-        else [Version(v) for v in version]
+        canonicalize_name(name): (
+            [Version(version)]
+            if isinstance(version, str)
+            else [Version(v) for v in version]
+        )
         for name, version in packages.items()
     }
 

@@ -442,7 +442,7 @@ class RobotpyInstaller:
         ignore_installed: bool,
         no_deps: bool,
         pre: bool,
-        requirements: typing.Iterable[str],
+        requirements: typing.Iterable[pathlib.Path],
     ):
         if pre:
             pip_args.append("--pre")
@@ -455,18 +455,18 @@ class RobotpyInstaller:
 
         for req in requirements:
             if cache:
-                fname = f"/requirements/{basename(req)}"
-                cache.add_mapping(fname, req)
+                fname = f"/requirements/{req.name}"
+                cache.add_mapping(fname, str(req))
                 pip_args.extend(["-r", f"http://localhost:{cache.port}{fname}"])
             else:
-                pip_args.extend(["-r", req])
+                pip_args.extend(["-r", str(req)])
 
     def pip_download(
         self,
         no_deps: bool,
         pre: bool,
-        requirements: typing.Iterable[str],
-        packages: typing.Iterable[str],
+        requirements: typing.Sequence[pathlib.Path],
+        packages: typing.Sequence[str],
     ):
         """
         Specify Python package(s) to download, and store them in the cache.
@@ -533,7 +533,7 @@ class RobotpyInstaller:
         ignore_installed: bool,
         no_deps: bool,
         pre: bool,
-        requirements: typing.Sequence[str],
+        requirements: typing.Sequence[pathlib.Path],
         packages: typing.Sequence[str],
     ):
         """

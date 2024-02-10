@@ -365,6 +365,12 @@ class Deploy:
 
         installer = RobotpyInstaller()
 
+        # Has the kill script been updated
+        with wrap_ssh_error("checking kill script"):
+            kill_script_updated = roborio_utils.check_kill_script(ssh)
+            if not kill_script_updated:
+                logger.warning("Need to update frcKillRobot.sh")
+
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
             cpp_java_exists = not roborio_utils.uninstall_cpp_java_lvuser(ssh)
@@ -431,7 +437,12 @@ class Deploy:
             if not yesno(prompt):
                 requirements_installed = True
 
-        if cpp_java_exists or not python_exists or not requirements_installed:
+        if (
+            cpp_java_exists
+            or not python_exists
+            or not requirements_installed
+            or not kill_script_updated
+        ):
             if no_install and not python_exists:
                 raise Error(
                     "python3 was not found on the roboRIO\n"
@@ -452,6 +463,9 @@ class Deploy:
                 ignore_image_version=ignore_image_version,
                 ssh=ssh,
             ):
+                if not kill_script_updated:
+                    roborio_utils.update_kill_script(installer.ssh)
+
                 if cpp_java_exists:
                     roborio_utils.uninstall_cpp_java_admin(installer.ssh)
 

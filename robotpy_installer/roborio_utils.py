@@ -1,5 +1,8 @@
+import hashlib
+import io
 import json
 import logging
+import pathlib
 import typing
 
 from .sshcontroller import SshController
@@ -14,7 +17,9 @@ static_deploy = "/home/lvuser/deploy"
 
 third_party_libs = "/usr/local/frc/third-party/lib"
 
-kill_robot_cmd = "/usr/local/frc/bin/frcKillRobot.sh -t"
+kill_robot_script = "/usr/local/frc/bin/frcKillRobot.sh"
+kill_robot_cmd = f"{kill_robot_script} -t"
+kill_script_content: typing.Optional[bytes] = None
 
 
 def uninstall_cpp_java_lvuser(ssh: SshController) -> bool:
@@ -80,3 +85,25 @@ def get_rio_py_packages(ssh: SshController) -> typing.Dict[str, str]:
     )
     assert result.stdout is not None
     return json.loads(result.stdout)
+
+
+def get_kill_script() -> bytes:
+    global kill_script_content
+    if kill_script_content is None:
+        with open(pathlib.Path(__file__).parent / "frcKillRobot.sh", "rb") as fp:
+            kill_script_content = fp.read()
+
+    return kill_script_content
+
+
+def check_kill_script(ssh: SshController) -> bool:
+    ks: bytes = get_kill_script()
+    ks_hash = hashlib.md5(ks).hexdigest()
+    output = ssh.check_output(f"md5sum {kill_robot_script}")
+    return output.split(" ", 1)[0] == ks_hash
+
+
+def update_kill_script(ssh: SshController):
+    logger.info("Updating %s", kill_robot_script)
+    fp = io.BytesIO(get_kill_script())
+    ssh.sftp_fp(fp, kill_robot_script)

@@ -258,7 +258,7 @@ class InstallerDownload:
         self,
         no_deps: bool,
         pre: bool,
-        requirements: typing.Tuple[str],
+        requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
     ):
         installer = RobotpyInstaller()
@@ -302,7 +302,7 @@ class InstallerInstall:
         ignore_installed: bool,
         no_deps: bool,
         pre: bool,
-        requirements: typing.Tuple[str],
+        requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
     ):
         if len(requirements) == 0 and len(packages) == 0:

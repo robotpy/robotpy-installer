@@ -1,6 +1,7 @@
 import contextlib
 import inspect
 import io
+import json
 import logging
 import pathlib
 import re
@@ -11,6 +12,8 @@ from urllib.parse import urlparse
 import typing
 
 from os.path import basename, exists
+
+from packaging.version import Version
 
 from .version import version as __version__
 from . import roborio_utils
@@ -631,6 +634,32 @@ class RobotpyInstaller:
 
         with catch_ssh_error("uninstalling packages"):
             self.ssh.exec_cmd(shlex.join(pip_args), check=True, print_output=True)
+
+    def get_pypi_version(self, package: str, use_certifi: bool) -> Version:
+        """
+        Retrieves the latest version of a package on pypi that corresponds to the current year
+        """
+        fname = self.cache_root / f"pypi-{package}.json"
+        _urlretrieve(
+            f"https://pypi.org/simple/{package}",
+            fname,
+            True,
+            _make_ssl_context(use_certifi),
+            False,
+            {"Accept": "application/vnd.pypi.simple.v1+json"},
+        )
+        with open(fname, "r") as fp:
+            data = json.load(fp)
+
+        versions = [Version(v) for v in data["versions"]]
+
+        # Sort the versions
+        maxv = Version(str(int(_WPILIB_YEAR) + 1))
+        versions = sorted(v for v in versions if v < maxv)
+        if not versions:
+            raise InstallerException(f"could not find {package} version on pypi")
+
+        return versions[-1]
 
 
 def _make_ssl_context(use_certifi: bool):

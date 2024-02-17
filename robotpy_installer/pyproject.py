@@ -7,6 +7,7 @@ import typing
 from packaging.requirements import Requirement
 from packaging.version import Version, InvalidVersion
 import tomli
+import tomlkit
 
 from . import pypackages
 from .pypackages import Packages, Env
@@ -245,3 +246,19 @@ def _load(
         robotpy_extras=robotpy_extras,
         requires=requires,
     )
+
+
+def set_robotpy_version(project_path: pathlib.Path, version: Version):
+    pyproject_path = toml_path(project_path)
+    with open(pyproject_path) as fp:
+        data = tomlkit.parse(fp.read())
+
+    try:
+        data["tool"]["robotpy"]["robotpy_version"] = str(version)  # type: ignore
+    except Exception as e:
+        raise ValueError("`pyproject.toml` is not valid") from e
+
+    rawdata = tomlkit.dumps(data)
+
+    with open(pyproject_path, "w") as fp:
+        fp.write(rawdata)

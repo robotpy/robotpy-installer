@@ -639,6 +639,7 @@ class RobotpyInstaller:
         """
         Retrieves the latest version of a package on pypi that corresponds to the current year
         """
+        self.cache_root.mkdir(parents=True, exist_ok=True)
         fname = self.cache_root / f"pypi-{package}.json"
         _urlretrieve(
             f"https://pypi.org/simple/{package}",

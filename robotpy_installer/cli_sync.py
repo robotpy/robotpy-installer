@@ -67,12 +67,20 @@ class Sync:
             help="Do not install any packages",
         )
 
+        parser.add_argument(
+            "--no-upgrade-project",
+            action="store_true",
+            default=False,
+            help="Do not check to see if the project can be upgraded",
+        )
+
     @handle_cli_error
     def run(
         self,
         project_path: pathlib.Path,
         main_file: pathlib.Path,
         no_install: bool,
+        no_upgrade_project: bool,
         user: bool,
         use_certifi: bool,
     ):
@@ -87,6 +95,19 @@ class Sync:
 
         # parse pyproject.toml to determine the requirements
         project = pyproject.load(project_path, write_if_missing=True)
+        logger.info(
+            "RobotPy version in `pyproject.toml` is '%s'", project.robotpy_version
+        )
+
+        # Check for upgrade
+        if not no_upgrade_project:
+            latest_robotpy_version = installer.get_pypi_version("robotpy", use_certifi)
+            logger.info("Latest version of RobotPy is '%s'", latest_robotpy_version)
+            if project.robotpy_version < latest_robotpy_version:
+                msg = f"Update robotpy_version in `pyproject.toml` to {latest_robotpy_version}?"
+                if yesno(msg):
+                    pyproject.set_robotpy_version(project_path, latest_robotpy_version)
+                    project.robotpy_version = latest_robotpy_version
 
         # Get the local version and don't accidentally downgrade them
         try:

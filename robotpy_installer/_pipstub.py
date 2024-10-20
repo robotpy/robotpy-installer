@@ -18,6 +18,6 @@ if __name__ == "__main__":
     platform.machine = lambda: "roborio"
     platform.python_implementation = lambda: "CPython"
     platform.system = lambda: "Linux"
-    platform.python_version = lambda: "3.12.0"
+    platform.python_version = lambda: "3.13.0"
 
     runpy.run_module("pip", run_name="__main__")

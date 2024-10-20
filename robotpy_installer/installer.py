@@ -22,28 +22,26 @@ from .errors import Error, SshExecError
 from .sshcontroller import SshController, ssh_from_cfg
 from .utils import _urlretrieve
 
-_WPILIB_YEAR = "2024"
-_IS_BETA = False
+_WPILIB_YEAR = "2025"
+_IS_BETA = True
 
 _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2024_v2.1",
-    "2024_v2.2",
+    "2025_v1.0",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2024_v2.1",
-    "2024_v2.2",
+    "2025_v1.0",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
-_ROBOTPY_PYTHON_VERSION_NUM = "312"
+_ROBOTPY_PYTHON_VERSION_NUM = "313"
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 _PIP_STUB_PATH = "/home/admin/rpip"
 
-_PYTHON_IPK = "https://github.com/robotpy/roborio-python/releases/download/2024-3.12.1-r1/python312_3.12.1-r1_cortexa9-vfpv3.ipk"
+_PYTHON_IPK = "https://github.com/robotpy/roborio-python/releases/download/2025-3.13.0-r1/python313_3.13.0-r1_cortexa9-vfpv3.ipk"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -625,6 +623,7 @@ class RobotpyInstaller:
             "--no-cache-dir",
             "--disable-pip-version-check",
             "uninstall",
+            "--root-user-action=ignore",
             "--yes",
         ]
         pip_args.extend(packages)

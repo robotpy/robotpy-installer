@@ -9,6 +9,8 @@ import sysconfig
 import os
 import sys
 
+rio_python_version = "3.12.0"
+
 
 if __name__ == "__main__":
     # Setup environment for what the RoboRIO python would have
@@ -18,6 +20,6 @@ if __name__ == "__main__":
     platform.machine = lambda: "roborio"
     platform.python_implementation = lambda: "CPython"
     platform.system = lambda: "Linux"
-    platform.python_version = lambda: "3.12.0"
+    platform.python_version = lambda: rio_python_version
 
     runpy.run_module("pip", run_name="__main__")

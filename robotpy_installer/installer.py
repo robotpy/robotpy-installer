@@ -67,9 +67,7 @@ def catch_ssh_error(msg: str):
 
 class RobotpyInstaller:
     def __init__(self, *, log_startup: bool = True):
-        self.cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
-        self.pip_cache = self.cache_root / "pip_cache"
-        self.opkg_cache = self.cache_root / "opkg_cache"
+        self.set_cache_root(pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy")
 
         self._ssh: typing.Optional[SshController] = None
         self._cache_server: typing.Optional[CacheServer] = None
@@ -83,6 +81,11 @@ class RobotpyInstaller:
         if log_startup:
             logger.info("RobotPy Installer %s", __version__)
             logger.info("-> caching files at %s", self.cache_root)
+
+    def set_cache_root(self, cache_root: pathlib.Path):
+        self.cache_root = cache_root
+        self.pip_cache = self.cache_root / "pip_cache"
+        self.opkg_cache = self.cache_root / "opkg_cache"
 
     @contextlib.contextmanager
     def connect_to_robot(
@@ -390,11 +393,12 @@ class RobotpyInstaller:
     def is_python_downloaded(self) -> bool:
         return self._python_ipk_path.exists()
 
-    def download_python(self, use_certifi: bool):
+    def download_python(self, use_certifi: bool) -> pathlib.Path:
         self.opkg_cache.mkdir(parents=True, exist_ok=True)
 
         ipk_dst = self._python_ipk_path
         _urlretrieve(_PYTHON_IPK, ipk_dst, True, _make_ssl_context(use_certifi))
+        return ipk_dst
 
     def install_python(self):
         """
@@ -443,6 +447,7 @@ class RobotpyInstaller:
         no_deps: bool,
         pre: bool,
         requirements: typing.Iterable[str],
+        find_links: typing.Optional[pathlib.Path] = None,
     ):
         if pre:
             pip_args.append("--pre")
@@ -452,6 +457,8 @@ class RobotpyInstaller:
             pip_args.append("--ignore-installed")
         if no_deps:
             pip_args.append("--no-deps")
+        if find_links is not None:
+            pip_args.extend(["--find-links", str(find_links.absolute())])
 
         for req in requirements:
             if cache:
@@ -467,6 +474,8 @@ class RobotpyInstaller:
         pre: bool,
         requirements: typing.Iterable[str],
         packages: typing.Iterable[str],
+        find_links: typing.Optional[pathlib.Path] = None,
+        no_index: bool = False,
     ):
         """
         Specify Python package(s) to download, and store them in the cache.
@@ -492,8 +501,6 @@ class RobotpyInstaller:
             "--no-cache-dir",
             "--disable-pip-version-check",
             "download",
-            "--extra-index-url",
-            _ROBORIO_WHEELS,
             "--only-binary",
             ":all:",
             "--platform",
@@ -508,6 +515,14 @@ class RobotpyInstaller:
             str(self.pip_cache),
         ]
 
+        if no_index:
+            pip_args.append("--no-index")
+        else:
+            pip_args += [
+                "--extra-index-url",
+                _ROBORIO_WHEELS,
+            ]
+
         self._extend_pip_args(
             pip_args,
             None,
@@ -516,6 +531,7 @@ class RobotpyInstaller:
             no_deps,
             pre,
             requirements,
+            find_links=find_links,
         )
 
         pip_args.extend(packages)

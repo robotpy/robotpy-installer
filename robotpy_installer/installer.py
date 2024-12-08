@@ -29,10 +29,12 @@ _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-r
 
 _ROBORIO_IMAGES = [
     "2025_v1.0",
+    "2025_v1.1",
 ]
 
 _ROBORIO2_IMAGES = [
     "2025_v1.0",
+    "2025_v1.1",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"

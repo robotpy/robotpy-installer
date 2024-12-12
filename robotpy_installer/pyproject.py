@@ -9,6 +9,7 @@ from packaging.version import Version, InvalidVersion
 import tomli
 import tomlkit
 
+from . import installer
 from . import pypackages
 from .pypackages import Packages, Env
 from .errors import Error
@@ -19,6 +20,10 @@ class PyprojectError(Error):
 
 
 class NoRobotpyError(PyprojectError):
+    pass
+
+
+class UnsupportedRobotpyVersion(PyprojectError):
     pass
 
 
@@ -222,6 +227,14 @@ def _load(
         raise PyprojectError(
             f"{pyproject_path}: tools.robotpy.robotpy_version is not a valid version"
         ) from None
+
+    supported_year = int(installer._WPILIB_YEAR)
+    if robotpy_version.major != supported_year:
+        msg = (
+            f"Only RobotPy {supported_year}.x is supported by this version "
+            f"of robotpy-installer ({pyproject_path} has {robotpy_version})"
+        )
+        raise UnsupportedRobotpyVersion(msg)
 
     robotpy_extras_any = robotpy_data.get("robotpy_extras")
     if isinstance(robotpy_extras_any, list):

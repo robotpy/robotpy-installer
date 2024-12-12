@@ -657,7 +657,14 @@ class RobotpyInstaller:
 
         # Sort the versions
         maxv = Version(str(int(_WPILIB_YEAR) + 1))
-        versions = sorted(v for v in versions if v < maxv)
+
+        def _version_ok(v: Version) -> bool:
+            ok = v < maxv and not v.is_devrelease
+            if ok and not _IS_BETA:
+                ok = not v.is_prerelease
+            return ok
+
+        versions = sorted(v for v in versions if _version_ok(v))
         if not versions:
             raise InstallerException(f"could not find {package} version on pypi")
 

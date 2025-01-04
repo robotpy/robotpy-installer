@@ -23,7 +23,7 @@ from .sshcontroller import SshController, ssh_from_cfg
 from .utils import _urlretrieve
 
 _WPILIB_YEAR = "2025"
-_IS_BETA = True
+_IS_BETA = False
 
 _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 

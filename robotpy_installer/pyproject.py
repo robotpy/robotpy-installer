@@ -350,8 +350,8 @@ def write_default_pyproject(
     profile_default/
     ipython_config.py
 
-    # pyenv
-     .python-version
+    # pyenv (Not Enabled by Default)
+    #  .python-version
 
     # pdm
     .pdm.toml

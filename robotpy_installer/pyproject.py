@@ -173,6 +173,305 @@ def write_default_pyproject(
     with open(toml_path(project_path), "w") as fp:
         fp.write(content)
 
+    ignore_content = inspect.cleandoc("""
+    # Executables
+    *.exe
+    *.out
+    *.app
+
+    # Log file
+    *.log
+
+    # Package Files #
+    *.jar
+    *.war
+    *.nar
+    *.ear
+    *.zip
+    *.tar.gz
+    *.rar
+
+    # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
+    hs_err_pid*
+
+    ### Linux ###
+    *~
+
+    # temporary files which can be created if a process still has a handle open of a deleted file
+    .fuse_hidden*
+
+    # KDE directory preferences
+    .directory
+
+    # Linux trash folder which might appear on any partition or disk
+    .Trash-*
+
+    # .nfs files are created when an open file is removed but is still being accessed
+    .nfs*
+
+    ### macOS ###
+    # General
+    .DS_Store
+    .AppleDouble
+    .LSOverride
+
+    # Icon must end with two \r
+    Icon
+
+    # Thumbnails
+    ._*
+
+    # Files that might appear in the root of a volume
+    .DocumentRevisions-V100
+    .fseventsd
+    .Spotlight-V100
+    .TemporaryItems
+    .Trashes
+    .VolumeIcon.icns
+    .com.apple.timemachine.donotpresent
+
+    # Directories potentially created on remote AFP share
+    .AppleDB
+    .AppleDesktop
+    Network Trash Folder
+    Temporary Items
+    .apdisk
+
+    ### VisualStudioCode ###
+    .vscode/*
+    !.vscode/settings.json
+    !.vscode/tasks.json
+    !.vscode/launch.json
+    !.vscode/extensions.json
+
+    ### Windows ###
+    # Windows thumbnail cache files
+    Thumbs.db
+    ehthumbs.db
+    ehthumbs_vista.db
+
+    # Dump file
+    *.stackdump
+
+    # Folder config file
+    [Dd]esktop.ini
+
+    # Recycle Bin used on file shares
+    $RECYCLE.BIN/
+
+    # Windows Installer files
+    *.cab
+    *.msi
+    *.msix
+    *.msm
+    *.msp
+
+    # Windows shortcuts
+    *.lnk
+
+    ### Gradle ###
+    .gradle
+    /build/
+
+    # Ignore Gradle GUI config
+    gradle-app.setting
+
+    # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
+    !gradle-wrapper.jar
+
+    # Cache of project
+    .gradletasknamecache
+
+    # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
+    # gradle/wrapper/gradle-wrapper.properties
+
+    # # VS Code Specific Java Settings
+    # DO NOT REMOVE .classpath and .project
+    .classpath
+    .project
+    .settings/
+    bin/
+
+    # IntelliJ
+    *.iml
+    *.ipr
+    *.iws
+    .idea/
+    out/
+
+    # Fleet
+    .fleet
+
+    # Simulation GUI and other tools window save file
+    networktables.json
+    simgui.json
+    *-window.json
+
+    # Simulation data log directory
+    logs/
+
+    # Folder that has CTRE Phoenix Sim device config storage
+    ctre_sim/
+
+    # clangd
+    /.cache
+    compile_commands.json
+
+    # Eclipse generated file for annotation processors
+    .factorypath
+
+    # Byte-compiled / optimized / DLL files
+    __pycache__/
+    *.py[cod]
+    *$py.class
+
+    # C extensions
+    *.so
+
+    # Distribution / packaging
+    .Python
+    build/
+    develop-eggs/
+    dist/
+    downloads/
+    eggs/
+    .eggs/
+    lib/
+    lib64/
+    parts/
+    sdist/
+    var/
+    wheels/
+    share/python-wheels/
+    *.egg-info/
+    .installed.cfg
+    *.egg
+    MANIFEST
+
+    # PyInstaller
+    #  Usually these files are written by a python script from a template
+    #  before PyInstaller builds the exe, so as to inject date/other infos into it.
+    *.manifest
+    *.spec
+
+    # Installer logs
+    pip-log.txt
+    pip-delete-this-directory.txt
+
+    # Unit test / coverage reports
+    htmlcov/
+    .tox/
+    .nox/
+    .coverage
+    .coverage.*
+    .cache
+    nosetests.xml
+    coverage.xml
+    *.cover
+    *.py,cover
+    .hypothesis/
+    .pytest_cache/
+    cover/
+
+    # Translations
+    *.mo
+    *.pot
+
+    # Django stuff:
+    local_settings.py
+    db.sqlite3
+    db.sqlite3-journal
+
+    # Flask stuff:
+    instance/
+    .webassets-cache
+
+    # Scrapy stuff:
+    .scrapy
+
+    # Sphinx documentation
+    docs/_build/
+
+    # PyBuilder
+    .pybuilder/
+    target/
+
+    # Jupyter Notebook
+    .ipynb_checkpoints
+
+    # IPython
+    profile_default/
+    ipython_config.py
+
+    # pyenv
+     .python-version
+
+    # pipenv
+    Pipfile.lock
+
+    # UV
+    uv.lock
+
+    # poetry
+    poetry.lock
+
+    # pdm
+    pdm.lock
+    .pdm.toml
+    .pdm-python
+    .pdm-build/
+
+    # PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
+    __pypackages__/
+
+    # Celery stuff
+    celerybeat-schedule
+    celerybeat.pid
+
+    # SageMath parsed files
+    *.sage.py
+
+    # Environments
+    .env
+    .venv
+    env/
+    venv/
+    ENV/
+    env.bak/
+    venv.bak/
+
+    # Spyder project settings
+    .spyderproject
+    .spyproject
+
+    # Rope project settings
+    .ropeproject
+
+    # mkdocs documentation
+    /site
+
+    # mypy
+    .mypy_cache/
+    .dmypy.json
+    dmypy.json
+
+    # Pyre type checker
+    .pyre/
+
+    # pytype static type analyzer
+    .pytype/
+
+    # Cython debug symbols
+    cython_debug/
+
+    # PyPI configuration file
+    .pypirc
+        """)
+
+    ignore_content += "\n"
+
+    with open(gitignore_path(project_path), "w") as fp:
+        fp.write(ignore_content)
 
 def load(
     project_path: pathlib.Path,
@@ -261,315 +560,6 @@ def _load(
         robotpy_extras=robotpy_extras,
         requires=requires,
     )
-
-def write_default_gitignore(
-    project_path: pathlib.Path,
-):
-    """
-    Using the current environment, write a basic .gitignore
-
-    :param project_path: Path to robot project
-    """
-
-    content = inspect.cleandoc("""
-# Executables
-*.exe
-*.out
-*.app
-
-# Log file
-*.log
-
-# Package Files #
-*.jar
-*.war
-*.nar
-*.ear
-*.zip
-*.tar.gz
-*.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-hs_err_pid*
-
-### Linux ###
-*~
-
-# temporary files which can be created if a process still has a handle open of a deleted file
-.fuse_hidden*
-
-# KDE directory preferences
-.directory
-
-# Linux trash folder which might appear on any partition or disk
-.Trash-*
-
-# .nfs files are created when an open file is removed but is still being accessed
-.nfs*
-
-### macOS ###
-# General
-.DS_Store
-.AppleDouble
-.LSOverride
-
-# Icon must end with two \r
-Icon
-
-# Thumbnails
-._*
-
-# Files that might appear in the root of a volume
-.DocumentRevisions-V100
-.fseventsd
-.Spotlight-V100
-.TemporaryItems
-.Trashes
-.VolumeIcon.icns
-.com.apple.timemachine.donotpresent
-
-# Directories potentially created on remote AFP share
-.AppleDB
-.AppleDesktop
-Network Trash Folder
-Temporary Items
-.apdisk
-
-### VisualStudioCode ###
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-
-### Windows ###
-# Windows thumbnail cache files
-Thumbs.db
-ehthumbs.db
-ehthumbs_vista.db
-
-# Dump file
-*.stackdump
-
-# Folder config file
-[Dd]esktop.ini
-
-# Recycle Bin used on file shares
-$RECYCLE.BIN/
-
-# Windows Installer files
-*.cab
-*.msi
-*.msix
-*.msm
-*.msp
-
-# Windows shortcuts
-*.lnk
-
-### Gradle ###
-.gradle
-/build/
-
-# Ignore Gradle GUI config
-gradle-app.setting
-
-# Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
-!gradle-wrapper.jar
-
-# Cache of project
-.gradletasknamecache
-
-# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-# gradle/wrapper/gradle-wrapper.properties
-
-# # VS Code Specific Java Settings
-# DO NOT REMOVE .classpath and .project
-.classpath
-.project
-.settings/
-bin/
-
-# IntelliJ
-*.iml
-*.ipr
-*.iws
-.idea/
-out/
-
-# Fleet
-.fleet
-
-# Simulation GUI and other tools window save file
-networktables.json
-simgui.json
-*-window.json
-
-# Simulation data log directory
-logs/
-
-# Folder that has CTRE Phoenix Sim device config storage
-ctre_sim/
-
-# clangd
-/.cache
-compile_commands.json
-
-# Eclipse generated file for annotation processors
-.factorypath
-
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
-*.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-#  Usually these files are written by a python script from a template
-#  before PyInstaller builds the exe, so as to inject date/other infos into it.
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
-.pytest_cache/
-cover/
-
-# Translations
-*.mo
-*.pot
-
-# Django stuff:
-local_settings.py
-db.sqlite3
-db.sqlite3-journal
-
-# Flask stuff:
-instance/
-.webassets-cache
-
-# Scrapy stuff:
-.scrapy
-
-# Sphinx documentation
-docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
- .python-version
-
-# pipenv
-Pipfile.lock
-
-# UV
-uv.lock
-
-# poetry
-poetry.lock
-
-# pdm
-pdm.lock
-.pdm.toml
-.pdm-python
-.pdm-build/
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow and github.com/pdm-project/pdm
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
-
-# Environments
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Spyder project settings
-.spyderproject
-.spyproject
-
-# Rope project settings
-.ropeproject
-
-# mkdocs documentation
-/site
-
-# mypy
-.mypy_cache/
-.dmypy.json
-dmypy.json
-
-# Pyre type checker
-.pyre/
-
-# pytype static type analyzer
-.pytype/
-
-# Cython debug symbols
-cython_debug/
-
-# PyPI configuration file
-.pypirc
-    """)
-
-    content += "\n"
-
-    with open(gitignore_path(project_path), "w") as fp:
-        fp.write(content)
 
 def set_robotpy_version(project_path: pathlib.Path, version: Version):
     pyproject_path = toml_path(project_path)

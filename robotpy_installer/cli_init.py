@@ -30,7 +30,7 @@ class Init:
 
             logger.info("Created empty %s", main_file)
 
-        # Create pyproject.toml if it doesn't already exist
+        # Create pyproject.toml and .gitignore if it doesn't already exist
         pyproject_path = pyproject.toml_path(project_path)
         if not pyproject_path.exists():
             pyproject.write_default_pyproject(project_path)

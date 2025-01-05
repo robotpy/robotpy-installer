@@ -177,26 +177,9 @@ def write_default_pyproject(
 
     ignore_content = inspect.cleandoc(
         """
-    # Executables
-    *.exe
-    *.out
-    *.app
-
     # Log file
     *.log
-
-    # Package Files #
-    *.jar
-    *.war
-    *.nar
-    *.ear
-    *.zip
-    *.tar.gz
-    *.rar
-
-    # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
-    hs_err_pid*
-
+    
     ### Linux ###
     *~
 
@@ -262,43 +245,7 @@ def write_default_pyproject(
     # Recycle Bin used on file shares
     $RECYCLE.BIN/
 
-    # Windows Installer files
-    *.cab
-    *.msi
-    *.msix
-    *.msm
-    *.msp
-
-    # Windows shortcuts
-    *.lnk
-
-    ### Gradle ###
-    .gradle
-    /build/
-
-    # Ignore Gradle GUI config
-    gradle-app.setting
-
-    # Avoid ignoring Gradle wrapper jar file (.jar files are usually ignored)
-    !gradle-wrapper.jar
-
-    # Cache of project
-    .gradletasknamecache
-
-    # # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
-    # gradle/wrapper/gradle-wrapper.properties
-
-    # # VS Code Specific Java Settings
-    # DO NOT REMOVE .classpath and .project
-    .classpath
-    .project
-    .settings/
-    bin/
-
     # IntelliJ
-    *.iml
-    *.ipr
-    *.iws
     .idea/
     out/
 
@@ -327,9 +274,6 @@ def write_default_pyproject(
     __pycache__/
     *.py[cod]
     *$py.class
-
-    # C extensions
-    *.so
 
     # Distribution / packaging
     .Python
@@ -409,17 +353,7 @@ def write_default_pyproject(
     # pyenv
      .python-version
 
-    # pipenv
-    Pipfile.lock
-
-    # UV
-    uv.lock
-
-    # poetry
-    poetry.lock
-
     # pdm
-    pdm.lock
     .pdm.toml
     .pdm-python
     .pdm-build/

@@ -30,8 +30,10 @@ class UnsupportedRobotpyVersion(PyprojectError):
 def toml_path(project_path: pathlib.Path):
     return project_path / "pyproject.toml"
 
+
 def gitignore_path(project_path: pathlib.Path):
     return project_path / ".gitignore"
+
 
 @dataclasses.dataclass
 class RobotPyProjectToml:
@@ -173,7 +175,8 @@ def write_default_pyproject(
     with open(toml_path(project_path), "w") as fp:
         fp.write(content)
 
-    ignore_content = inspect.cleandoc("""
+    ignore_content = inspect.cleandoc(
+        """
     # Executables
     *.exe
     *.out
@@ -466,12 +469,14 @@ def write_default_pyproject(
 
     # PyPI configuration file
     .pypirc
-        """)
+        """
+    )
 
     ignore_content += "\n"
 
     with open(gitignore_path(project_path), "w") as fp:
         fp.write(ignore_content)
+
 
 def load(
     project_path: pathlib.Path,
@@ -560,6 +565,7 @@ def _load(
         robotpy_extras=robotpy_extras,
         requires=requires,
     )
+
 
 def set_robotpy_version(project_path: pathlib.Path, version: Version):
     pyproject_path = toml_path(project_path)

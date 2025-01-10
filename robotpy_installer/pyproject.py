@@ -127,59 +127,18 @@ def robotpy_installed_version() -> str:
         ) from None
 
 
-def write_default_pyproject(
-    project_path: pathlib.Path,
-):
+def write_default_gitignore(project_path: pathlib.Path):
     """
-    Using the current environment, write a minimal pyproject.toml
+    Using the current environment, write a basic .gitignore file
 
     :param project_path: Path to robot project
     """
-
-    robotpy_version = robotpy_installed_version()
-
-    provides_extra = metadata("robotpy").get_all("Provides-Extra")
-    if not provides_extra:
-        extras = ""
-    else:
-        extras = "\n    # ".join(f'"{extra}",' for extra in sorted(provides_extra))
-
-    content = inspect.cleandoc(
-        f"""
-            
-            #
-            # Use this configuration file to control what RobotPy packages are installed
-            # on your RoboRIO
-            #
-
-            [tool.robotpy]
-
-            # Version of robotpy this project depends on
-            robotpy_version = "{robotpy_version}"
-            
-            # Which extra RobotPy components should be installed
-            # -> equivalent to `pip install robotpy[extra1, ...]
-            robotpy_extras = [
-                # ##EXTRAS##
-            ]
-
-            # Other pip packages to install
-            requires = []
-
-        """
-    )
-
-    content += "\n"
-    content = content.replace("##EXTRAS##", extras)
-
-    with open(toml_path(project_path), "w") as fp:
-        fp.write(content)
 
     ignore_content = inspect.cleandoc(
         """
     # Log file
     *.log
-    
+
     ### Linux ###
     *~
 
@@ -410,6 +369,55 @@ def write_default_pyproject(
 
     with open(gitignore_path(project_path), "w") as fp:
         fp.write(ignore_content)
+
+
+def write_default_pyproject(
+    project_path: pathlib.Path,
+):
+    """
+    Using the current environment, write a minimal pyproject.toml
+
+    :param project_path: Path to robot project
+    """
+
+    robotpy_version = robotpy_installed_version()
+
+    provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    if not provides_extra:
+        extras = ""
+    else:
+        extras = "\n    # ".join(f'"{extra}",' for extra in sorted(provides_extra))
+
+    content = inspect.cleandoc(
+        f"""
+            
+            #
+            # Use this configuration file to control what RobotPy packages are installed
+            # on your RoboRIO
+            #
+
+            [tool.robotpy]
+
+            # Version of robotpy this project depends on
+            robotpy_version = "{robotpy_version}"
+            
+            # Which extra RobotPy components should be installed
+            # -> equivalent to `pip install robotpy[extra1, ...]
+            robotpy_extras = [
+                # ##EXTRAS##
+            ]
+
+            # Other pip packages to install
+            requires = []
+
+        """
+    )
+
+    content += "\n"
+    content = content.replace("##EXTRAS##", extras)
+
+    with open(toml_path(project_path), "w") as fp:
+        fp.write(content)
 
 
 def load(

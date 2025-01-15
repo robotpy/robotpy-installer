@@ -655,7 +655,7 @@ class Deploy:
 
             # skip .svn, .git, .hg, etc directories
             for d in dirs[:]:
-                if d.startswith(".") or d in ("__pycache__", "venv"):
+                if d.startswith(".") or d in ("__pycache__", "ctre_sim", "venv"):
                     dirs.remove(d)
 
             # skip .pyc files

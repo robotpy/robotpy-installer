@@ -38,8 +38,8 @@ class Init:
             logger.info("Created %s", pyproject_path)
 
         # Create .gitignore if it doesn't already exist
-        pyproject_path = pyproject.gitignore_path(project_path)
-        if not pyproject_path.exists():
-            pyproject.write_default_gitignore(project_path)
+        gitignore_path = pyproject.gitignore_path(project_path)
+        if not gitignore_path.exists():
+            pyproject.write_default_gitignore(gitignore_path)
 
-            logger.info("Created %s", pyproject_path)
+            logger.info("Created %s", gitignore_path)

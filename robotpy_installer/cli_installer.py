@@ -364,6 +364,35 @@ class InstallerNiWeb:
     ]
 
 
+class InstallerSshCommand:
+    """
+    Executes a shell command on the RoboRIO via SSH
+    """
+
+    def __init__(self, parser: argparse.ArgumentParser) -> None:
+        _add_ssh_options(parser)
+        parser.add_argument("cmd")
+
+    @handle_cli_error
+    def run(
+        self,
+        project_path: pathlib.Path,
+        main_file: pathlib.Path,
+        ignore_image_version: bool,
+        robot: typing.Optional[str],
+        cmd: str,
+    ):
+        installer = RobotpyInstaller()
+        with installer.connect_to_robot(
+            project_path=project_path,
+            main_file=main_file,
+            robot_or_team=robot,
+            ignore_image_version=ignore_image_version,
+            log_usage=True,
+        ):
+            installer.ssh.exec_bash(cmd, check=True, print_output=True)
+
+
 class InstallerList(_BasicInstallerCmd):
     """
     Lists Python packages present on RoboRIO
@@ -426,6 +455,7 @@ class Installer:
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
         ("niweb", InstallerNiWeb),
+        ("sshcmd", InstallerSshCommand),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),
         ("uninstall-robotpy", InstallerUninstallRobotPy),

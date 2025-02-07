@@ -150,6 +150,7 @@ def get_local_packages() -> Packages:
     return {
         canonicalize_name(dist.metadata["Name"]): [Version(dist.version)]
         for dist in distributions()
+        if dist.metadata["Name"]
     }
 
 

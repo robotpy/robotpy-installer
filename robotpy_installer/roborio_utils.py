@@ -95,6 +95,9 @@ def get_kill_script() -> bytes:
         with open(pathlib.Path(__file__).parent / "frcKillRobot.sh", "rb") as fp:
             kill_script_content = fp.read()
 
+        # On Windows this sometimes has \r\n, which will fail on the RIO
+        kill_script_content = kill_script_content.replace(b"\r\n", b"\n")
+
     return kill_script_content
 
 

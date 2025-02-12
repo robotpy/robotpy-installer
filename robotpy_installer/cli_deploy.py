@@ -17,6 +17,7 @@ from os.path import join, splitext
 
 from . import pypackages, pyproject, roborio_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
+from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
 
@@ -349,6 +350,14 @@ class Deploy:
             self._robot_packages = pypackages.make_packages(rio_packages)
         return self._robot_packages
 
+    def _clear_pip_packages(self, installer: RobotpyInstaller):
+        rio_packages = self._get_robot_packages(installer.ssh)
+        to_uninstall = [p for p in rio_packages.keys() if p != "pip"]
+        if to_uninstall:
+            installer.pip_uninstall(to_uninstall)
+
+        self._packages_in_cache = None
+
     def _ensure_requirements(
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
@@ -361,6 +370,7 @@ class Deploy:
         no_uninstall: bool,
     ):
         python_exists = False
+        python_invalid: typing.Union[bool, str] = False
         requirements_installed = False
 
         installer = RobotpyInstaller()
@@ -382,6 +392,33 @@ class Deploy:
             )
             if not python_exists:
                 logger.warning("Python is not installed on RoboRIO")
+
+        if python_exists:
+            with wrap_ssh_error("getting python version"):
+                python_version = roborio_utils.get_python3_version(ssh)
+
+            if python_version != required_pyversion:
+                python_exists = False
+                m, mn = python_version
+                rm, rmn = required_pyversion
+                python_invalid = f"python{m}{mn}"
+
+                if no_install:
+                    raise Error(
+                        f"Unsupported version of python ({m}.{mn}) was found on the roboRIO\n"
+                        "- could not update it because no-install was specified\n"
+                    )
+
+                # Warn the user before changing their rio
+                print(
+                    "\n"
+                    f"Deployer has detected that the version of Python installed on the RoboRIO ({m}.{mn})\n"
+                    "is not supported by this installer. The installer will now uninstall that\n"
+                    f"and install Python {rm}.{rmn}.\n"
+                )
+
+                if not yesno("Reinstall Python"):
+                    raise Error("User declined reinstallation")
 
         if python_exists:
             if no_install:
@@ -440,6 +477,7 @@ class Deploy:
         if (
             cpp_java_exists
             or not python_exists
+            or python_invalid
             or not requirements_installed
             or not kill_script_updated
         ):
@@ -468,6 +506,16 @@ class Deploy:
 
                 if cpp_java_exists:
                     roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+
+                if python_invalid:
+                    with wrap_ssh_error("uninstalling python"):
+                        self._clear_pip_packages(installer)
+                        logger.info("Uninstalling %s from RoboRIO", python_invalid)
+                        installer.ssh.exec_cmd(
+                            f"opkg remove {python_invalid}",
+                            check=True,
+                            print_output=True,
+                        )
 
                 if not python_exists:
                     try:
@@ -508,11 +556,7 @@ class Deploy:
                         # environment is to first clear the environment.
                         # - can't do a partial uninstall without completely
                         #   resolving everything
-
-                        rio_packages = self._get_robot_packages(installer.ssh)
-                        to_uninstall = [p for p in rio_packages.keys() if p != "pip"]
-                        if to_uninstall:
-                            installer.pip_uninstall(to_uninstall)
+                        self._clear_pip_packages(installer)
 
                     logger.info("Installing project requirements on RoboRIO:")
                     for package in packages:

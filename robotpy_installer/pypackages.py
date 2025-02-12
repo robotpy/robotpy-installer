@@ -138,7 +138,10 @@ def make_cache_extra_resolver(packages: Packages) -> ExtraResolver:
             raise ValueError("internal error")
 
         m = metadata_from_wheel(creq.file_path)
-        return evaluate_extras_markers(m.requires_dist, env, req.extras)
+        if m.requires_dist:
+            return evaluate_extras_markers(m.requires_dist, env, req.extras)
+
+        return []
 
     return _resolver
 
@@ -187,7 +190,7 @@ def get_pip_cache_packages(
 
 
 def make_packages(
-    packages: typing.Mapping[str, typing.Union[typing.List[str], str]]
+    packages: typing.Mapping[str, typing.Union[typing.List[str], str]],
 ) -> Packages:
     """
     For unit testing

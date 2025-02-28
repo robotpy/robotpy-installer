@@ -582,6 +582,16 @@ class Deploy:
     ) -> bool:
         # This probably should be configurable... oh well
 
+        # GradleRIO kills the robot before deploying it, so we do that too
+        logger.info("Killing robot program")
+        with wrap_ssh_error("killing robot program"):
+            ssh.exec_bash(
+                ". /etc/profile.d/frc-path.sh",
+                ". /etc/profile.d/natinst-path.sh",
+                "/usr/local/frc/bin/frcKillRobot.sh -t",
+                check=False,
+            )
+
         deploy_dir = pathlib.PurePosixPath("/home/lvuser")
         py_deploy_subdir = "py"
         py_new_deploy_subdir = "py_new"
@@ -624,6 +634,8 @@ class Deploy:
         with wrap_ssh_error("removing stale deploy directory"):
             ssh.exec_cmd(f"rm -rf {py_new_deploy_dir}", check=True)
 
+        logger.info("Copying new files to RoboRIO")
+
         # Copy the files over, copy to a temporary directory first
         # -> this is inefficient, but it's easier in sftp
         tmp_dir = pathlib.Path(tempfile.mkdtemp())
@@ -660,6 +672,7 @@ class Deploy:
             "'"
         )
 
+        logger.info("Starting robot code")
         logger.debug("SSH: %s", sshcmd)
 
         with wrap_ssh_error("starting robot code"):

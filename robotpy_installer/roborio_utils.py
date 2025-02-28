@@ -22,6 +22,21 @@ kill_robot_cmd = f"{kill_robot_script} -t"
 kill_script_content: typing.Optional[bytes] = None
 
 
+def get_python3_version(ssh: SshController) -> typing.Tuple[int, int]:
+    r = ssh.check_output(
+        "/usr/local/bin/python3 -c 'import json, sys; json.dump(tuple(sys.version_info), sys.stderr)'"
+    )
+
+    python_version = json.loads(r)
+    assert isinstance(python_version, list)
+    python_version = tuple(python_version[:2])
+    assert len(python_version) == 2
+
+    logger.debug("RoboRIO has Python %s.%s installed", *python_version)
+
+    return python_version
+
+
 def uninstall_cpp_java_lvuser(ssh: SshController) -> bool:
     """
     Frees up disk space by removing FRC C++/Java programs. This runs as lvuser or admin.

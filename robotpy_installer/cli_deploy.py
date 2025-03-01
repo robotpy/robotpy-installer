@@ -588,8 +588,9 @@ class Deploy:
             ssh.exec_bash(
                 ". /etc/profile.d/frc-path.sh",
                 ". /etc/profile.d/natinst-path.sh",
-                "/usr/local/frc/bin/frcKillRobot.sh -t",
+                "sh -x /usr/local/frc/bin/frcKillRobot.sh -t",
                 check=False,
+                print_output=True,
             )
 
         deploy_dir = pathlib.PurePosixPath("/home/lvuser")
@@ -668,7 +669,7 @@ class Deploy:
             ". /etc/profile.d/natinst-path.sh; "
             f"chown -R lvuser:ni {py_deploy_dir}; "
             "sync; "
-            "/usr/local/frc/bin/frcKillRobot.sh -t -r || true"
+            "sh -x /usr/local/frc/bin/frcKillRobot.sh -t -r || true"
             "'"
         )
 

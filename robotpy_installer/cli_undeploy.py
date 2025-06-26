@@ -7,7 +7,7 @@ import typing
 from os.path import abspath, dirname, join
 
 from . import sshcontroller
-from .utils import print_err, yesno
+from .utils import print_err, yesno, exists_case_sensative
 
 
 class Undeploy:
@@ -49,9 +49,9 @@ class Undeploy:
         no_resolve: bool,
         yes: bool,
     ):
-        if not main_file.exists():
+        if not exists_case_sensative(main_file):
             print(
-                f"ERROR: is this a robot project? {main_file} does not exist",
+                f"ERROR: is this a robot project? {main_file} does not exist; The file name is case sensative",
                 file=sys.stderr,
             )
             return 1

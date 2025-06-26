@@ -8,6 +8,7 @@ import socket
 import sys
 import typing
 import urllib.request
+import pathlib
 
 from robotpy_installer import __version__
 from .errors import Error
@@ -191,3 +192,42 @@ def handle_cli_error(func):
             return False
 
     return wrapper
+
+
+def exists_case_sensative(path: pathlib.Path) -> bool:
+    """
+    case sensative replacement for pathlib.Path.exists().
+    This only checks the file or dir at the end of the path exists and has correct case.
+    This is required because Windows by default does not check case.
+    In the case where the path ends in '..' and the directory exists then True is returned.
+    Do NOT .resolve() the path before calling.
+    """
+
+    # exit if the path does not exist; continue to confim the case
+    if not path.exists():
+        return False
+
+    # resolve makes the path object have the accurate capitilization of each part
+    resolved_path = path.resolve()
+
+    if path.is_file():
+        if resolved_path.name == path.name:
+            return True
+
+        return False
+
+    elif path.is_dir():
+        # this will get rid of a '.' at the end of a path
+        absolute_path = path.absolute()
+
+        # no case check nessisary if true
+        if absolute_path.parts[-1] == "..":
+            return True
+
+        if resolved_path.parts[-1] == absolute_path.parts[-1]:
+            return True
+
+        return False
+
+    # if neither file or directory: False; like Path.exists()
+    return False

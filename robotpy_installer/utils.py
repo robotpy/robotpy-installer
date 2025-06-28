@@ -194,9 +194,9 @@ def handle_cli_error(func):
     return wrapper
 
 
-def exists_case_sensative(path: pathlib.Path) -> bool:
+def exists_case_sensitive(path: pathlib.Path) -> bool:
     """
-    case sensative replacement for pathlib.Path.exists().
+    case sensitive replacement for pathlib.Path.exists().
     This only checks the file or dir at the end of the path exists and has correct case.
     This is required because Windows by default does not check case.
     In the case where the path ends in '..' and the directory exists then True is returned.

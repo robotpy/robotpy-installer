@@ -19,7 +19,7 @@ from . import pypackages, pyproject, roborio_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
 from .errors import Error
-from .utils import handle_cli_error, print_err, yesno, exists_case_sensative
+from .utils import handle_cli_error, print_err, yesno, exists_case_sensitive
 
 import logging
 
@@ -166,9 +166,9 @@ class Deploy:
         team: typing.Optional[int],
         no_resolve: bool,
     ):
-        if not exists_case_sensative(main_file):
+        if not exists_case_sensitive(main_file):
             print(
-                f"ERROR: is this a robot project? {main_file} does not exist; The file name is case sensative",
+                f"ERROR: is this a robot project? {main_file} does not exist; The file name is case sensitive",
                 file=sys.stderr,
             )
             return 1

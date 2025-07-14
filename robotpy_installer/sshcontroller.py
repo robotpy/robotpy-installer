@@ -85,6 +85,8 @@ class SshController:
         transport = self.client.get_transport()
         assert transport is not None
 
+        logger.debug("Executing '%s' check=%s has_stdin=%s", cmd, check, bool(stdin))
+
         with transport.open_session() as channel:
             channel.set_combine_stderr(True)
             channel.exec_command(cmd)

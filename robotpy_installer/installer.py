@@ -62,6 +62,7 @@ class PythonMissingError(InstallerException):
 @contextlib.contextmanager
 def catch_ssh_error(msg: str):
     try:
+        logger.debug("Performing: %s", msg)
         yield
     except SshExecError as e:
         raise InstallerException(f"{msg}: {e}")

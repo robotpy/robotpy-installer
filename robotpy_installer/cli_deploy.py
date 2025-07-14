@@ -15,7 +15,7 @@ import typing
 
 from os.path import join, splitext
 
-from . import pypackages, pyproject, roborio_utils, sshcontroller
+from . import pypackages, pyproject, robot_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
 from .errors import Error
@@ -346,7 +346,7 @@ class Deploy:
         self, ssh: sshcontroller.SshController
     ) -> pypackages.Packages:
         if self._robot_packages is None:
-            rio_packages = roborio_utils.get_rio_py_packages(ssh)
+            rio_packages = robot_utils.get_rio_py_packages(ssh)
             self._robot_packages = pypackages.make_packages(rio_packages)
         return self._robot_packages
 
@@ -377,13 +377,13 @@ class Deploy:
 
         # Has the kill script been updated
         with wrap_ssh_error("checking kill script"):
-            kill_script_updated = roborio_utils.check_kill_script(ssh)
+            kill_script_updated = robot_utils.check_kill_script(ssh)
             if not kill_script_updated:
                 logger.warning("Need to update frcKillRobot.sh")
 
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
-            cpp_java_exists = not roborio_utils.uninstall_cpp_java_lvuser(ssh)
+            cpp_java_exists = not robot_utils.uninstall_cpp_java_lvuser(ssh)
 
         # does python exist
         with wrap_ssh_error("checking if python exists"):
@@ -395,7 +395,7 @@ class Deploy:
 
         if python_exists:
             with wrap_ssh_error("getting python version"):
-                python_version = roborio_utils.get_python3_version(ssh)
+                python_version = robot_utils.get_python3_version(ssh)
 
             if python_version != required_pyversion:
                 python_exists = False
@@ -492,7 +492,7 @@ class Deploy:
             ssh.exec_bash(
                 ". /etc/profile.d/frc-path.sh",
                 ". /etc/profile.d/natinst-path.sh",
-                roborio_utils.kill_robot_cmd,
+                robot_utils.kill_robot_cmd,
             )
 
             with installer.connect_to_robot(
@@ -502,10 +502,10 @@ class Deploy:
                 ssh=ssh,
             ):
                 if not kill_script_updated:
-                    roborio_utils.update_kill_script(installer.ssh)
+                    robot_utils.update_kill_script(installer.ssh)
 
                 if cpp_java_exists:
-                    roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+                    robot_utils.uninstall_cpp_java_admin(installer.ssh)
 
                 if python_invalid:
                     with wrap_ssh_error("uninstalling python"):

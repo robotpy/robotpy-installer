@@ -16,7 +16,7 @@ from os.path import basename, exists
 from packaging.version import Version
 
 from .version import version as __version__
-from . import roborio_utils
+from . import robot_utils
 from .cacheserver import CacheServer
 from .errors import Error, SshExecError
 from .sshcontroller import SshController, ssh_from_cfg
@@ -421,13 +421,13 @@ class RobotpyInstaller:
     def uninstall_robotpy(self):
         with catch_ssh_error("removing user program"):
             self.ssh.exec_bash(
-                roborio_utils.kill_robot_cmd,
+                robot_utils.kill_robot_cmd,
                 "rm -rf /home/lvuser/py",
-                f"rm -f {roborio_utils.robot_command}",
+                f"rm -f {robot_utils.robot_command}",
             )
 
         with catch_ssh_error("removing pip packages"):
-            pkgs = roborio_utils.get_rio_py_packages(self.ssh)
+            pkgs = robot_utils.get_rio_py_packages(self.ssh)
             self.pip_uninstall([pkg for pkg in pkgs.keys() if pkg != "pip"])
 
         self.uninstall_python()

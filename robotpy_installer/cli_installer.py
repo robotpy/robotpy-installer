@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import typing
 
-from . import pypackages, roborio_utils
+from . import pypackages, robot_utils
 from .utils import handle_cli_error
 
 from .installer import (
@@ -201,8 +201,8 @@ class InstallerUninstallJavaCpp(_BasicInstallerCmd):
     """
 
     def on_run(self, installer: RobotpyInstaller):
-        if not roborio_utils.uninstall_cpp_java_lvuser(installer.ssh):
-            roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+        if not robot_utils.uninstall_cpp_java_lvuser(installer.ssh):
+            robot_utils.uninstall_cpp_java_admin(installer.ssh)
 
 
 #

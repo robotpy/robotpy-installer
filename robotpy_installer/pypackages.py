@@ -216,7 +216,7 @@ def metadata_from_wheel(whl_path: pathlib.Path) -> Metadata:
     return Metadata.from_email(m, validate=False)
 
 
-def roborio_env() -> Env:
+def robot_env() -> Env:
     """
     For use with ``packaging.marker.Marker.evaluate``
     """

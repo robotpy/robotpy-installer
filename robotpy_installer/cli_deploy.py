@@ -433,7 +433,7 @@ class Deploy:
                 assert project is not None
                 requirements_installed, desc = project.are_requirements_met(
                     pkgdata,
-                    pypackages.roborio_env(),
+                    pypackages.robot_env(),
                     pypackages.make_cache_extra_resolver(
                         self._get_cached_packages(installer)
                     ),
@@ -534,7 +534,7 @@ class Deploy:
                     cached = self._get_cached_packages(installer)
                     ok, missing = project.are_requirements_met(
                         cached,
-                        pypackages.roborio_env(),
+                        pypackages.robot_env(),
                         pypackages.make_cache_extra_resolver(cached),
                     )
                     if not ok:

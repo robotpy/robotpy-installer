@@ -18,6 +18,7 @@ from os.path import join, splitext
 from . import pypackages, pyproject, robot_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
+from .installer import _ROBOT_VENV_PYTHON
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
 
@@ -84,7 +85,7 @@ class Deploy:
             "--ignore-image-version",
             action="store_true",
             default=False,
-            help="Ignore RoboRIO image version",
+            help="Ignore SystemCore image version",
         )
 
         parser.add_argument(
@@ -115,14 +116,14 @@ class Deploy:
             "--no-uninstall",
             action="store_true",
             default=False,
-            help="Do not uninstall packages from the RoboRIO",
+            help="Do not uninstall packages from the SystemCore",
         )
 
         parser.add_argument(
             "--large",
             action="store_true",
             default=False,
-            help="If specified, allow uploading large files (> 250k) to the RoboRIO",
+            help="If specified, allow uploading large files (> 250k) to the SystemCore",
         )
 
         robot_args = parser.add_mutually_exclusive_group()
@@ -220,7 +221,9 @@ class Deploy:
                 logger.info("- %s", package)
 
             if no_verify:
-                logger.warning("Not checking to see if they are installed on RoboRIO")
+                logger.warning(
+                    "Not checking to see if they are installed on SystemCore"
+                )
             else:
                 requirements_met, desc = project.are_local_requirements_met()
                 if not requirements_met:
@@ -239,20 +242,18 @@ class Deploy:
                     )
                     raise Error(msg)
 
-        with sshcontroller.ssh_from_cfg(
-            project_path,
-            main_file,
-            username="lvuser",
-            password="",
+        installer = RobotpyInstaller()
+
+        with installer.connect_to_robot(
+            project_path=project_path,
+            main_file=main_file,
             robot_or_team=robot or team,
-            no_resolve=no_resolve,
+            ignore_image_version=ignore_image_version,
         ) as ssh:
             self._ensure_requirements(
                 project,
-                project_path,
-                main_file,
+                installer,
                 ssh,
-                ignore_image_version,
                 no_install,
                 force_install,
                 no_uninstall,
@@ -346,25 +347,20 @@ class Deploy:
         self, ssh: sshcontroller.SshController
     ) -> pypackages.Packages:
         if self._robot_packages is None:
-            rio_packages = robot_utils.get_rio_py_packages(ssh)
+            rio_packages = robot_utils.get_robot_py_packages(ssh)
             self._robot_packages = pypackages.make_packages(rio_packages)
         return self._robot_packages
 
     def _clear_pip_packages(self, installer: RobotpyInstaller):
-        rio_packages = self._get_robot_packages(installer.ssh)
-        to_uninstall = [p for p in rio_packages.keys() if p != "pip"]
-        if to_uninstall:
-            installer.pip_uninstall(to_uninstall)
-
+        installer.uninstall_venv()
         self._packages_in_cache = None
+        self._robot_packages = None
 
     def _ensure_requirements(
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
-        project_path: pathlib.Path,
-        main_file: pathlib.Path,
+        installer: RobotpyInstaller,
         ssh: sshcontroller.SshController,
-        ignore_image_version: bool,
         no_install: bool,
         force_install: bool,
         no_uninstall: bool,
@@ -373,29 +369,20 @@ class Deploy:
         python_invalid: typing.Union[bool, str] = False
         requirements_installed = False
 
-        installer = RobotpyInstaller()
-
-        # Has the kill script been updated
-        with wrap_ssh_error("checking kill script"):
-            kill_script_updated = robot_utils.check_kill_script(ssh)
-            if not kill_script_updated:
-                logger.warning("Need to update frcKillRobot.sh")
-
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
-            cpp_java_exists = not robot_utils.uninstall_cpp_java_lvuser(ssh)
+            cpp_java_exists = not robot_utils.uninstall_cpp_java(ssh)
 
         # does python exist
-        with wrap_ssh_error("checking if python exists"):
-            python_exists = (
-                ssh.exec_cmd("[ -x /usr/local/bin/python3 ]").returncode == 0
-            )
+        with wrap_ssh_error("checking if python was installed"):
+            python_exists = installer.is_python_installed()
             if not python_exists:
-                logger.warning("Python is not installed on RoboRIO")
+                logger.warning("Python is not installed on SystemCore")
 
         if python_exists:
+
             with wrap_ssh_error("getting python version"):
-                python_version = robot_utils.get_python3_version(ssh)
+                python_version = installer.get_python_version()
 
             if python_version != required_pyversion:
                 python_exists = False
@@ -405,14 +392,14 @@ class Deploy:
 
                 if no_install:
                     raise Error(
-                        f"Unsupported version of python ({m}.{mn}) was found on the roboRIO\n"
+                        f"Unsupported version of python ({m}.{mn}) was found on the robot\n"
                         "- could not update it because no-install was specified\n"
                     )
 
                 # Warn the user before changing their rio
                 print(
                     "\n"
-                    f"Deployer has detected that the version of Python installed on the RoboRIO ({m}.{mn})\n"
+                    f"Deployer has detected that the version of Python installed on the robot ({m}.{mn})\n"
                     "is not supported by this installer. The installer will now uninstall that\n"
                     f"and install Python {rm}.{rmn}.\n"
                 )
@@ -426,7 +413,7 @@ class Deploy:
             elif not force_install:
                 pkgdata = self._get_robot_packages(ssh)
 
-                logger.debug("Roborio has these packages installed:")
+                logger.debug("Robot has these packages installed:")
                 for pkg, version in pkgdata.items():
                     logger.debug("- %s (%s)", pkg, version[0])
 
@@ -439,7 +426,7 @@ class Deploy:
                     ),
                 )
                 if not requirements_installed:
-                    logger.warning("Project requirements not installed on RoboRIO")
+                    logger.warning("Project requirements not installed on robot")
                     for msg in desc:
                         logger.warning("- %s", msg)
                 else:
@@ -456,17 +443,17 @@ class Deploy:
             # before changing their rio
             print(
                 "\n"
-                "Deployer has detected that the packages installed on your RoboRIO do not match\n"
+                "Deployer has detected that the packages installed on your robot do not match\n"
                 "the requirements in pyproject.toml. The installer will now:\n"
             )
             if not no_uninstall:
                 prompt = "Continue with uninstall + install?"
-                print("* Uninstall ALL Python packages from the RoboRIO")
+                print("* Uninstall ALL Python packages from the robot")
             else:
                 prompt = "Continue with install?"
 
             print(
-                "* Install required packages on the RoboRIO\n"
+                "* Install required packages on the robot\n"
                 "\n"
                 "If you do not wish to do this, specify --no-install as a deploy argument, or answer 'n'.\n"
             )
@@ -479,97 +466,76 @@ class Deploy:
             or not python_exists
             or python_invalid
             or not requirements_installed
-            or not kill_script_updated
         ):
             if no_install and not python_exists:
                 raise Error(
-                    "python3 was not found on the roboRIO\n"
+                    "python3 was not found on the robot\n"
                     "- could not install it because no-install was specified\n"
                     "- Use 'python -m robotpy installer install-python' to install python separately"
                 )
 
-            # This also will give more memory
-            ssh.exec_bash(
-                ". /etc/profile.d/frc-path.sh",
-                ". /etc/profile.d/natinst-path.sh",
-                robot_utils.kill_robot_cmd,
-            )
+            ssh.exec_bash(robot_utils.kill_robot_cmd)
 
-            with installer.connect_to_robot(
-                project_path=project_path,
-                main_file=main_file,
-                ignore_image_version=ignore_image_version,
-                ssh=ssh,
-            ):
-                if not kill_script_updated:
-                    robot_utils.update_kill_script(installer.ssh)
+            if python_invalid:
+                with wrap_ssh_error("uninstalling python"):
+                    self._clear_pip_packages(installer)
+                    logger.info("Uninstalling %s from robot", python_invalid)
+                    installer.uninstall_python()
+                    python_exists = False
 
-                if cpp_java_exists:
-                    robot_utils.uninstall_cpp_java_admin(installer.ssh)
+            if not python_exists:
+                try:
+                    installer.install_python()
+                except PythonMissingError as e:
+                    raise PythonMissingError(
+                        f"{e}\n\n"
+                        "Run 'python -m robotpy sync' to download your project requirements from the internet (or --no-install to ignore)"
+                    ) from e
 
-                if python_invalid:
-                    with wrap_ssh_error("uninstalling python"):
-                        self._clear_pip_packages(installer)
-                        logger.info("Uninstalling %s from RoboRIO", python_invalid)
-                        installer.ssh.exec_cmd(
-                            f"opkg remove {python_invalid}",
-                            check=True,
-                            print_output=True,
-                        )
+            if not requirements_installed:
+                assert project is not None
+                packages = project.get_install_list()
 
-                if not python_exists:
-                    try:
-                        installer.install_python()
-                    except PythonMissingError as e:
-                        raise PythonMissingError(
-                            f"{e}\n\n"
-                            "Run 'python -m robotpy sync' to download your project requirements from the internet (or --no-install to ignore)"
-                        ) from e
+                # Check if everything is in the cache before doing the install
+                cached = self._get_cached_packages(installer)
+                ok, missing = project.are_requirements_met(
+                    cached,
+                    pypackages.robot_env(),
+                    pypackages.make_cache_extra_resolver(cached),
+                )
+                if not ok:
+                    errmsg = ["Project requirements not found in download cache!"]
+                    errmsg.extend([f"- {msg}" for msg in missing])
+                    errmsg += [
+                        "",
+                        "Run 'python -m robotpy sync' to download your project requirements",
+                        "from the internet (or specify --no-install to not attempt installation).",
+                    ]
+                    raise Error("\n".join(errmsg))
 
-                if not requirements_installed:
-                    assert project is not None
-                    packages = project.get_install_list()
-
-                    # Check if everything is in the cache before doing the install
-                    cached = self._get_cached_packages(installer)
-                    ok, missing = project.are_requirements_met(
-                        cached,
-                        pypackages.robot_env(),
-                        pypackages.make_cache_extra_resolver(cached),
+                if not no_uninstall:
+                    logger.info(
+                        "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
                     )
-                    if not ok:
-                        errmsg = ["Project requirements not found in download cache!"]
-                        errmsg.extend([f"- {msg}" for msg in missing])
-                        errmsg += [
-                            "",
-                            "Run 'python -m robotpy sync' to download your project requirements",
-                            "from the internet (or specify --no-install to not attempt installation).",
-                        ]
-                        raise Error("\n".join(errmsg))
+                    # The user may have deleted something from the project
+                    # requirements so the only way to ensure the exact
+                    # environment is to first clear the environment.
+                    # - can't do a partial uninstall without completely
+                    #   resolving everything
+                    self._clear_pip_packages(installer)
 
-                    if not no_uninstall:
-                        logger.info(
-                            "Clearing existing packages on RoboRIO before install (specify --no-uninstall to not do this)"
-                        )
-                        # The user may have deleted something from the project
-                        # requirements so the only way to ensure the exact
-                        # environment is to first clear the environment.
-                        # - can't do a partial uninstall without completely
-                        #   resolving everything
-                        self._clear_pip_packages(installer)
+                logger.info("Installing project requirements on robot:")
+                for package in packages:
+                    logger.info("- %s", package)
 
-                    logger.info("Installing project requirements on RoboRIO:")
-                    for package in packages:
-                        logger.info("- %s", package)
-
-                    try:
-                        installer.pip_install(False, False, False, False, [], packages)
-                    except PipInstallError as e:
-                        raise PipInstallError(
-                            f"{e}\n\n"
-                            "If 'no matching distribution found', run 'python -m robotpy sync' to download your\n"
-                            "project requirements from the internet (or --no-install to ignore)."
-                        ) from e
+                try:
+                    installer.pip_install(False, False, False, False, [], packages)
+                except PipInstallError as e:
+                    raise PipInstallError(
+                        f"{e}\n\n"
+                        "If 'no matching distribution found', run 'python -m robotpy sync' to download your\n"
+                        "project requirements from the internet (or --no-install to ignore)."
+                    ) from e
 
     def _do_deploy(
         self,
@@ -585,14 +551,9 @@ class Deploy:
         # GradleRIO kills the robot before deploying it, so we do that too
         logger.info("Killing robot program")
         with wrap_ssh_error("killing robot program"):
-            ssh.exec_bash(
-                ". /etc/profile.d/frc-path.sh",
-                ". /etc/profile.d/natinst-path.sh",
-                "/usr/local/frc/bin/frcKillRobot.sh -t",
-                check=False,
-            )
+            ssh.exec_bash(robot_utils.kill_robot_cmd, check=False)
 
-        deploy_dir = pathlib.PurePosixPath("/home/lvuser")
+        deploy_dir = pathlib.PurePosixPath("/home/systemcore")
         py_deploy_subdir = "py"
         py_new_deploy_subdir = "py_new"
         py_deploy_dir = deploy_dir / py_deploy_subdir
@@ -604,18 +565,12 @@ class Deploy:
 
         if debug:
             compileall_flags = ""
-            deployed_cmd = (
-                "env LD_LIBRARY_PATH=/usr/local/frc/lib/ "
-                f"/usr/local/bin/python3 -u -m robotpy --main {py_deploy_dir}/{robot_filename} -v run"
-            )
+            deployed_cmd = f"{_ROBOT_VENV_PYTHON} -u -m robotpy --main {py_deploy_dir}/{robot_filename} -v run"
             deployed_cmd_fname = "robotDebugCommand"
             bash_cmd = "/bin/bash -cex"
         else:
             compileall_flags = "-O"
-            deployed_cmd = (
-                "env LD_LIBRARY_PATH=/usr/local/frc/lib/ "
-                f"/usr/local/bin/python3 -u -O -m robotpy --main {py_deploy_dir}/{robot_filename} run"
-            )
+            deployed_cmd = f"{_ROBOT_VENV_PYTHON} -u -O -m robotpy --main {py_deploy_dir}/{robot_filename} run"
             deployed_cmd_fname = "robotCommand"
             bash_cmd = "/bin/bash -ce"
 
@@ -627,6 +582,8 @@ class Deploy:
                 f'echo "{deployed_cmd}" > {deploy_dir}/{deployed_cmd_fname}', check=True
             )
 
+            ssh.exec_cmd(f"chmod +x {robot_utils.robot_command}", check=True)
+
         if debug:
             with wrap_ssh_error("touching frcDebug"):
                 ssh.exec_cmd("touch /tmp/frcdebug", check=True)
@@ -634,7 +591,7 @@ class Deploy:
         with wrap_ssh_error("removing stale deploy directory"):
             ssh.exec_cmd(f"rm -rf {py_new_deploy_dir}", check=True)
 
-        logger.info("Copying new files to RoboRIO")
+        logger.info("Copying new files to SystemCore")
 
         # Copy the files over, copy to a temporary directory first
         # -> this is inefficient, but it's easier in sftp
@@ -663,12 +620,10 @@ class Deploy:
         sshcmd = (
             f"{bash_cmd} '"
             f"{replace_cmd};"
-            f"/usr/local/bin/python3 {compileall_flags} -m compileall -q -r 5 /home/lvuser/py;"
-            ". /etc/profile.d/frc-path.sh; "
-            ". /etc/profile.d/natinst-path.sh; "
-            f"chown -R lvuser:ni {py_deploy_dir}; "
-            "sync; "
-            "/usr/local/frc/bin/frcKillRobot.sh -t -r || true"
+            f"{_ROBOT_VENV_PYTHON} {compileall_flags} -m compileall -q -r 5 /home/systemcore/py;"
+            "sudo sync; "
+            "sudo systemctl enable robot;"
+            "sudo systemctl start robot;"
             "'"
         )
 

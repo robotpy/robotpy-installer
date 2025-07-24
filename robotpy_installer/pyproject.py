@@ -393,7 +393,7 @@ def write_default_pyproject(
             
             #
             # Use this configuration file to control what RobotPy packages are installed
-            # on your RoboRIO
+            # on your SystemCore
             #
 
             [tool.robotpy]

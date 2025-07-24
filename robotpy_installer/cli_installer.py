@@ -24,7 +24,7 @@ def _add_ssh_options(parser: argparse.ArgumentParser):
         "--ignore-image-version",
         action="store_true",
         default=False,
-        help="Ignore RoboRIO image version",
+        help="Ignore SystemCore image version",
     )
 
 
@@ -126,7 +126,7 @@ class InstallerCache:
 
 class InstallerDownloadPython:
     """
-    Downloads Python for RoboRIO
+    Downloads Python for SystemCore
 
     You must be connected to the internet for this to work.
     """
@@ -146,7 +146,7 @@ class InstallerDownloadPython:
 
 class InstallerInstallPython(_BasicInstallerCmd):
     """
-    Installs Python on a RoboRIO
+    Installs Python on a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
@@ -155,7 +155,7 @@ class InstallerInstallPython(_BasicInstallerCmd):
 
 class InstallerUninstallPython(_BasicInstallerCmd):
     """
-    Uninstall Python from a RoboRIO
+    Uninstall Python from a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
@@ -164,7 +164,7 @@ class InstallerUninstallPython(_BasicInstallerCmd):
 
 class InstallerUninstallRobotPy:
     """
-    Uninstall RobotPy and user programs from a RoboRIO
+    Uninstall RobotPy and user programs from a SystemCore
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -197,12 +197,11 @@ class InstallerUninstallRobotPy:
 
 class InstallerUninstallJavaCpp(_BasicInstallerCmd):
     """
-    Uninstall FRC Java/C++ programs from a RoboRIO
+    Uninstall FRC Java/C++ programs from a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
-        if not robot_utils.uninstall_cpp_java_lvuser(installer.ssh):
-            robot_utils.uninstall_cpp_java_admin(installer.ssh)
+        robot_utils.uninstall_cpp_java(installer.ssh)
 
 
 #
@@ -267,7 +266,7 @@ class InstallerDownload:
 
 class InstallerInstall:
     """
-    Installs Python package(s) on a RoboRIO.
+    Installs Python package(s) on a SystemCore.
 
     The package must already been downloaded with the 'download' command first.
     """
@@ -324,7 +323,7 @@ class InstallerInstall:
 
 class InstallerSshCommand:
     """
-    Executes a shell command on the RoboRIO via SSH
+    Executes a shell command on the SystemCore via SSH
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -353,7 +352,7 @@ class InstallerSshCommand:
 
 class InstallerList(_BasicInstallerCmd):
     """
-    Lists Python packages present on RoboRIO
+    Lists Python packages present on SystemCore
     """
 
     log_usage = False
@@ -364,7 +363,7 @@ class InstallerList(_BasicInstallerCmd):
 
 class InstallerUninstall:
     """
-    Uninstall Python packages from a RoboRIO
+    Uninstall Python packages from a SystemCore
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -402,7 +401,7 @@ class InstallerUninstall:
 
 class Installer:
     """
-    Manage RobotPy on your RoboRIO
+    Manage RobotPy on your SystemCore
     """
 
     subcommands = [

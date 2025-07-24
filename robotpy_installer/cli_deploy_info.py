@@ -6,6 +6,7 @@ import sys
 import typing
 
 from . import sshcontroller
+from . import robot_utils
 
 from .utils import handle_cli_error
 from .utils import print_err
@@ -53,15 +54,15 @@ class DeployInfo:
         with sshcontroller.ssh_from_cfg(
             project_path,
             main_file,
-            username="lvuser",
-            password="",
+            username=robot_utils.ssh_username,
+            password=robot_utils.ssh_password,
             robot_or_team=robot or team,
             no_resolve=no_resolve,
         ) as ssh:
             result = ssh.exec_cmd(
                 (
-                    "[ -f /home/lvuser/py/deploy.json ] && "
-                    "cat /home/lvuser/py/deploy.json || "
+                    "[ -f /home/systemcore/py/deploy.json ] && "
+                    "cat /home/systemcore/py/deploy.json || "
                     "echo {}"
                 ),
                 get_output=True,

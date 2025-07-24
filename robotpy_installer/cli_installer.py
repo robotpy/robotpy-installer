@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import typing
 
-from . import pypackages, roborio_utils
+from . import pypackages, robot_utils
 from .utils import handle_cli_error
 
 from .installer import (
@@ -24,7 +24,7 @@ def _add_ssh_options(parser: argparse.ArgumentParser):
         "--ignore-image-version",
         action="store_true",
         default=False,
-        help="Ignore RoboRIO image version",
+        help="Ignore SystemCore image version",
     )
 
 
@@ -126,7 +126,7 @@ class InstallerCache:
 
 class InstallerDownloadPython:
     """
-    Downloads Python for RoboRIO
+    Downloads Python for SystemCore
 
     You must be connected to the internet for this to work.
     """
@@ -146,7 +146,7 @@ class InstallerDownloadPython:
 
 class InstallerInstallPython(_BasicInstallerCmd):
     """
-    Installs Python on a RoboRIO
+    Installs Python on a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
@@ -155,7 +155,7 @@ class InstallerInstallPython(_BasicInstallerCmd):
 
 class InstallerUninstallPython(_BasicInstallerCmd):
     """
-    Uninstall Python from a RoboRIO
+    Uninstall Python from a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
@@ -164,7 +164,7 @@ class InstallerUninstallPython(_BasicInstallerCmd):
 
 class InstallerUninstallRobotPy:
     """
-    Uninstall RobotPy and user programs from a RoboRIO
+    Uninstall RobotPy and user programs from a SystemCore
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -197,12 +197,11 @@ class InstallerUninstallRobotPy:
 
 class InstallerUninstallJavaCpp(_BasicInstallerCmd):
     """
-    Uninstall FRC Java/C++ programs from a RoboRIO
+    Uninstall FRC Java/C++ programs from a SystemCore
     """
 
     def on_run(self, installer: RobotpyInstaller):
-        if not roborio_utils.uninstall_cpp_java_lvuser(installer.ssh):
-            roborio_utils.uninstall_cpp_java_admin(installer.ssh)
+        robot_utils.uninstall_cpp_java(installer.ssh)
 
 
 #
@@ -267,7 +266,7 @@ class InstallerDownload:
 
 class InstallerInstall:
     """
-    Installs Python package(s) on a RoboRIO.
+    Installs Python package(s) on a SystemCore.
 
     The package must already been downloaded with the 'download' command first.
     """
@@ -322,51 +321,9 @@ class InstallerInstall:
             )
 
 
-class InstallerNiWebEnable(_BasicInstallerCmd):
-    """
-    Enables the NI web server and starts it
-    """
-
-    def on_run(self, installer: RobotpyInstaller):
-        installer.ssh.exec_bash(
-            "update-rc.d -f systemWebServer defaults",
-            "/etc/init.d/systemWebServer start",
-            check=True,
-            print_output=True,
-        )
-
-
-class InstallerNiWebDisable(_BasicInstallerCmd):
-    """
-    Stops the NI web server and disables it from starting
-    """
-
-    def on_run(self, installer: RobotpyInstaller):
-        installer.ssh.exec_bash(
-            "/etc/init.d/systemWebServer stop",
-            "update-rc.d -f systemWebServer remove",
-            check=True,
-            print_output=True,
-        )
-
-
-class InstallerNiWeb:
-    """
-    Manipulates the NI web server
-
-    The NI web server on the RoboRIO takes up a lot of memory, and isn't
-    used for very much. Use these commands to enable or disable it.
-    """
-
-    subcommands = [
-        ("enable", InstallerNiWebEnable),
-        ("disable", InstallerNiWebDisable),
-    ]
-
-
 class InstallerSshCommand:
     """
-    Executes a shell command on the RoboRIO via SSH
+    Executes a shell command on the SystemCore via SSH
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -395,7 +352,7 @@ class InstallerSshCommand:
 
 class InstallerList(_BasicInstallerCmd):
     """
-    Lists Python packages present on RoboRIO
+    Lists Python packages present on SystemCore
     """
 
     log_usage = False
@@ -406,7 +363,7 @@ class InstallerList(_BasicInstallerCmd):
 
 class InstallerUninstall:
     """
-    Uninstall Python packages from a RoboRIO
+    Uninstall Python packages from a SystemCore
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
@@ -444,7 +401,7 @@ class InstallerUninstall:
 
 class Installer:
     """
-    Manage RobotPy on your RoboRIO
+    Manage RobotPy on your SystemCore
     """
 
     subcommands = [
@@ -454,7 +411,6 @@ class Installer:
         ("install", InstallerInstall),
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
-        ("niweb", InstallerNiWeb),
         ("sshcmd", InstallerSshCommand),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),

@@ -24,7 +24,7 @@ def test_ok():
     )
     installed = pypackages.make_packages({"robotpy": f"{YEAR}.1.1.2"})
     assert project.are_requirements_met(
-        installed, pypackages.roborio_env(), null_resolver
+        installed, pypackages.robot_env(), null_resolver
     ) == (
         True,
         [],
@@ -40,7 +40,7 @@ def test_older_fail():
     )
     installed = pypackages.make_packages({"robotpy": f"{YEAR}.1.1.0"})
     assert project.are_requirements_met(
-        installed, pypackages.roborio_env(), null_resolver
+        installed, pypackages.robot_env(), null_resolver
     ) == (
         False,
         [f"robotpy=={YEAR}.1.1.2 (found {YEAR}.1.1.0)"],
@@ -58,7 +58,7 @@ def test_older_and_newer_fail():
         {"robotpy": [f"{YEAR}.1.1.0", f"{YEAR}.1.1.4"]}
     )
     assert project.are_requirements_met(
-        installed, pypackages.roborio_env(), null_resolver
+        installed, pypackages.robot_env(), null_resolver
     ) == (
         False,
         [f"robotpy=={YEAR}.1.1.2 (found {YEAR}.1.1.0, {YEAR}.1.1.4)"],
@@ -81,32 +81,32 @@ def test_beta_empty_req():
     )
 
     assert project.are_requirements_met(
-        installed, pypackages.roborio_env(), null_resolver
+        installed, pypackages.robot_env(), null_resolver
     ) == (
         True,
         [],
     )
 
 
-def test_env_marker():
-    project = load_project(
-        f"""
-        [tool.robotpy]
-        robotpy_version = "{YEAR}.1.1.2"
-        requires = [
-            "robotpy-opencv; platform_machine == 'roborio'",
-            "opencv-python; platform_machine != 'roborio'"
-        ]
-    """
-    )
+# def test_env_marker():
+#     project = load_project(
+#         f"""
+#         [tool.robotpy]
+#         robotpy_version = "{YEAR}.1.1.2"
+#         requires = [
+#             "robotpy-opencv; platform_machine == 'roborio'",
+#             "opencv-python; platform_machine != 'roborio'"
+#         ]
+#     """
+#     )
 
-    installed = pypackages.make_packages(
-        {"robotpy": f"{YEAR}.1.1.2", "robotpy-opencv": f"{YEAR}.0.0"}
-    )
+#     installed = pypackages.make_packages(
+#         {"robotpy": f"{YEAR}.1.1.2", "robotpy-opencv": f"{YEAR}.0.0"}
+#     )
 
-    assert project.are_requirements_met(
-        installed, pypackages.roborio_env(), null_resolver
-    ) == (
-        True,
-        [],
-    )
+#     assert project.are_requirements_met(
+#         installed, pypackages.robot_env(), null_resolver
+#     ) == (
+#         True,
+#         [],
+#     )

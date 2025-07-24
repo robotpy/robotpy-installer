@@ -216,18 +216,18 @@ def metadata_from_wheel(whl_path: pathlib.Path) -> Metadata:
     return Metadata.from_email(m, validate=False)
 
 
-def roborio_env() -> Env:
+def robot_env() -> Env:
     """
     For use with ``packaging.marker.Marker.evaluate``
     """
     return {
         "implementation_name": "cpython",
-        "implementation_version": "3.12.1",
+        "implementation_version": "3.13.5",
         "os_name": "posix",
-        "platform_machine": "roborio",
+        "platform_machine": "systemcore",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.12.0",
-        "python_version": "3.12",
+        "python_full_version": "3.13.0",
+        "python_version": "3.13",
         "sys_platform": "linux",
     }

@@ -7,6 +7,7 @@ from pathlib import Path, PurePath, PurePosixPath
 import shlex
 import socket
 import sys
+import threading
 import typing
 
 
@@ -78,6 +79,7 @@ class SshController:
         check: bool = False,
         get_output: bool = False,
         print_output: bool = False,
+        stdin: typing.Optional[bytes] = None,
     ) -> SshExecResult:
         output = None
         buffer = io.StringIO()
@@ -85,9 +87,29 @@ class SshController:
         transport = self.client.get_transport()
         assert transport is not None
 
+        logger.debug("Executing '%s' check=%s has_stdin=%s", cmd, check, bool(stdin))
+
         with transport.open_session() as channel:
             channel.set_combine_stderr(True)
             channel.exec_command(cmd)
+
+            stdin_th = None
+            stdin_ok = False
+            if stdin is not None:
+                cstdin = channel.makefile_stdin("wb", -1)
+
+                def _stdin_writer():
+                    try:
+                        cstdin.write(stdin)
+                        cstdin.close()
+
+                        nonlocal stdin_ok
+                        stdin_ok = True
+                    except Exception:
+                        logger.exception("writing to stdin failed")
+
+                stdin_th = threading.Thread(target=_stdin_writer)
+                stdin_th.start()
 
             with channel.makefile("r") as stdout:
                 for line in stdout:
@@ -102,7 +124,13 @@ class SshController:
                             ).decode(sys.stdout.encoding)
                             print(eline, end="")
 
+            if stdin_th is not None:
+                stdin_th.join()
+
             retval = channel.recv_exit_status()
+
+            if stdin_th and not stdin_ok:
+                raise SshExecError(f"Command '{cmd}' failed to write to stdin", retval)
 
         if check and retval != 0:
             raise SshExecError(
@@ -181,6 +209,16 @@ class SshController:
         sftp = self.client.open_sftp()
         try:
             sftp.putfo(fp, remote_path)
+        finally:
+            sftp.close()
+
+    def sftp_remote_file_exists(self, remote_path) -> bool:
+        sftp = self.client.open_sftp()
+        try:
+            sftp.stat(remote_path)
+            return True
+        except Exception:
+            return False
         finally:
             sftp.close()
 
@@ -276,11 +314,9 @@ def ssh_from_cfg(
         logger.info("Finding robot for team %s", team)
         finder = RobotFinder(
             ("10.%d.%d.2" % (team // 100, team % 100), False),
-            ("roboRIO-%d-FRC.local" % team, True),
-            ("172.22.11.2", False),  # USB
-            ("roboRIO-%d-FRC" % team, True),  # default DNS
-            ("roboRIO-%d-FRC.lan" % team, True),
-            ("roboRIO-%d-FRC.frc-field.local" % team, True),  # practice field mDNS
+            ("robot.local", True),
+            ("172.28.0.1", False),  # USB
+            ("172.30.0.1", False),  # WiFi
         )
         answer = finder.find()
         if not answer:

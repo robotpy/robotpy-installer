@@ -6,13 +6,14 @@ import typing
 
 from os.path import abspath, dirname, join
 
+from . import robot_utils
 from . import sshcontroller
 from .utils import print_err, yesno
 
 
 class Undeploy:
     """
-    Removes current Python robot code from a RoboRIO
+    Removes current Python robot code from a SystemCore
     """
 
     def __init__(self, parser: argparse.ArgumentParser):
@@ -58,7 +59,7 @@ class Undeploy:
 
         if not yes:
             if not yesno(
-                "This will stop your robot code and delete it from the RoboRIO. Continue?"
+                "This will stop your robot code and delete it from the SystemCore. Continue?"
             ):
                 return 1
 
@@ -66,21 +67,19 @@ class Undeploy:
             with sshcontroller.ssh_from_cfg(
                 project_path,
                 main_file,
-                username="lvuser",
-                password="",
+                username=robot_utils.ssh_username,
+                password=robot_utils.ssh_password,
                 robot_or_team=robot or team,
                 no_resolve=no_resolve,
             ) as ssh:
                 # first, turn off the running program
-                ssh.exec_cmd("/usr/local/frc/bin/frcKillRobot.sh -t")
+                ssh.exec_cmd(robot_utils.kill_robot_cmd)
 
                 # delete the code
-                ssh.exec_cmd("rm -rf /home/lvuser/py")
+                ssh.exec_cmd("rm -rf /home/systemcore/py")
 
                 # for good measure, delete the start command too
-                ssh.exec_cmd(
-                    "rm -f /home/lvuser/robotDebugCommand /home/lvuser/robotCommand"
-                )
+                ssh.exec_cmd(f"rm -f {robot_utils.robot_command}")
 
         except sshcontroller.SshExecError as e:
             print_err("ERROR:", str(e))

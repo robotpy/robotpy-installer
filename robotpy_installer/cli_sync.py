@@ -20,7 +20,7 @@ logger = logging.getLogger("sync")
 
 class Sync:
     """
-    Downloads RoboRIO requirements and installs requirements locally
+    Downloads SystemCore requirements and installs requirements locally
 
     The project requirements are determined by reading pyproject.toml. An
     example pyproject.toml is:
@@ -137,13 +137,13 @@ class Sync:
             logger.info("- %s", package)
 
         #
-        # First, download requirements for RoboRIO
+        # First, download requirements for SystemCore
         #
 
-        logger.info("Downloading Python for RoboRIO")
+        logger.info("Downloading Python for SystemCore")
         installer.download_python(use_certifi)
 
-        logger.info("Downloading RoboRIO python packages")
+        logger.info("Downloading SystemCore python packages")
         installer.pip_download(
             no_deps=False,
             pre=False,

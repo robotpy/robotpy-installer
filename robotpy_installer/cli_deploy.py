@@ -566,12 +566,10 @@ class Deploy:
         if debug:
             compileall_flags = ""
             deployed_cmd = f"{_ROBOT_VENV_PYTHON} -u -m robotpy --main {py_deploy_dir}/{robot_filename} -v run"
-            deployed_cmd_fname = "robotDebugCommand"
             bash_cmd = "/bin/bash -cex"
         else:
             compileall_flags = "-O"
             deployed_cmd = f"{_ROBOT_VENV_PYTHON} -u -O -m robotpy --main {py_deploy_dir}/{robot_filename} run"
-            deployed_cmd_fname = "robotCommand"
             bash_cmd = "/bin/bash -ce"
 
         py_new_deploy_dir = deploy_dir / py_new_deploy_subdir
@@ -579,14 +577,10 @@ class Deploy:
 
         with wrap_ssh_error("configuring command"):
             ssh.exec_cmd(
-                f'echo "{deployed_cmd}" > {deploy_dir}/{deployed_cmd_fname}', check=True
+                f'echo "{deployed_cmd}" > {robot_utils.robot_command}', check=True
             )
 
             ssh.exec_cmd(f"chmod +x {robot_utils.robot_command}", check=True)
-
-        if debug:
-            with wrap_ssh_error("touching frcDebug"):
-                ssh.exec_cmd("touch /tmp/frcdebug", check=True)
 
         with wrap_ssh_error("removing stale deploy directory"):
             ssh.exec_cmd(f"rm -rf {py_new_deploy_dir}", check=True)

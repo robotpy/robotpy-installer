@@ -171,20 +171,22 @@ def get_pip_cache_packages(
     """
 
     packages: Packages = {}
+    pip_cache = cache_root / "pip_cache"
 
-    for f in (cache_root / "pip_cache").iterdir():
-        if f.suffix == ".whl":
-            try:
-                name, version, _, _ = parse_wheel_filename(f.name)
-                packages.setdefault(name, []).append(CacheVersion(str(version), f))
-            except InvalidWheelFilename:
-                pass
-        elif f.suffix in (".gz", ".zip"):
-            try:
-                name, version = parse_sdist_filename(f.name)
-                packages.setdefault(name, []).append(CacheVersion(str(version), f))
-            except InvalidSdistFilename:
-                pass
+    if pip_cache.is_dir():
+        for f in pip_cache.iterdir():
+            if f.suffix == ".whl":
+                try:
+                    name, version, _, _ = parse_wheel_filename(f.name)
+                    packages.setdefault(name, []).append(CacheVersion(str(version), f))
+                except InvalidWheelFilename:
+                    pass
+            elif f.suffix in (".gz", ".zip"):
+                try:
+                    name, version = parse_sdist_filename(f.name)
+                    packages.setdefault(name, []).append(CacheVersion(str(version), f))
+                except InvalidSdistFilename:
+                    pass
 
     return packages
 

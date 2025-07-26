@@ -285,13 +285,13 @@ class RobotpyInstaller:
                 break
 
         used_kb = total_kb - available_kb
-        pct_free = (available_kb / float(total_kb)) * 100.0
+        pct_used = (used_kb / float(total_kb)) * 100.0
 
         logger.info(
-            "-> SystemCore memory %.1fM/%.1fM (%.0f%% full)",
+            "-> SystemCore memory %.1fM/%.1fM (%.0f%% used)",
             used_kb / 1000.0,
             total_kb / 1000.0,
-            pct_free,
+            pct_used,
         )
 
     def ensure_image_version(self, ignore_image_version: bool):

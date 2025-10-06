@@ -166,6 +166,12 @@ class Deploy:
         team: typing.Optional[int],
         no_resolve: bool,
     ):
+        if main_file.parent == pathlib.Path.home():
+            print_err(
+                "ERROR: running 'deploy' from your home directory is not supported!"
+            )
+            return False
+
         # run the test suite before uploading
         if not skip_tests:
             test_args = [

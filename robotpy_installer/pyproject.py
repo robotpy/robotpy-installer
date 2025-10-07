@@ -373,6 +373,7 @@ def write_default_gitignore(project_path: pathlib.Path):
 
 def write_default_pyproject(
     project_path: pathlib.Path,
+    robotpy_version: typing.Optional[str] = None,
 ):
     """
     Using the current environment, write a minimal pyproject.toml
@@ -380,13 +381,20 @@ def write_default_pyproject(
     :param project_path: Path to robot project
     """
 
-    robotpy_version = robotpy_installed_version()
+    if robotpy_version is None:
+        robotpy_version = robotpy_installed_version()
 
-    provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    try:
+        provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    except PackageNotFoundError:
+        provides_extra = []
+
     if not provides_extra:
         extras = ""
     else:
-        extras = "\n    # ".join(f'"{extra}",' for extra in sorted(provides_extra))
+        extras = "    #" + "\n    # ".join(
+            f'"{extra}",' for extra in sorted(provides_extra)
+        )
 
     content = inspect.cleandoc(
         f"""
@@ -404,7 +412,7 @@ def write_default_pyproject(
             # Which optional robotpy components should be installed?
             # -> equivalent to `pip install robotpy[extra1, ...]
             components = [
-                # ##EXTRAS##
+            ##EXTRAS##
             ]
 
             # Other pip packages to install, such as vendor packages (each element

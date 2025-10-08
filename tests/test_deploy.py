@@ -1,6 +1,7 @@
 """
 Unit tests for the deploy command (cli_deploy.py)
 """
+
 import pathlib
 import tempfile
 import unittest
@@ -48,8 +49,12 @@ class TestDeploy(unittest.TestCase):
         # Verify parser.add_argument was called for each command line option
         # Note: parser.add_argument is called, but mutually_exclusive_group also has add_argument
         call_count = self.parser.add_argument.call_count
-        if hasattr(self.parser, 'add_mutually_exclusive_group'):
-            for call in self.parser.add_mutually_exclusive_group.return_value.add_argument.call_args_list:
+        if hasattr(self.parser, "add_mutually_exclusive_group"):
+            for (
+                call
+            ) in (
+                self.parser.add_mutually_exclusive_group.return_value.add_argument.call_args_list
+            ):
                 call_count += 1
 
         self.assertGreater(call_count, 0)
@@ -60,8 +65,12 @@ class TestDeploy(unittest.TestCase):
             arg_names.extend(call_args[0])
 
         # Also check the mutually exclusive group arguments
-        if hasattr(self.parser, 'add_mutually_exclusive_group'):
-            for call_args in self.parser.add_mutually_exclusive_group.return_value.add_argument.call_args_list:
+        if hasattr(self.parser, "add_mutually_exclusive_group"):
+            for (
+                call_args
+            ) in (
+                self.parser.add_mutually_exclusive_group.return_value.add_argument.call_args_list
+            ):
                 arg_names.extend(call_args[0])
 
         self.assertIn("--builtin", arg_names)
@@ -243,6 +252,7 @@ class TestDeploy(unittest.TestCase):
         (self.project_path / "constants.py").write_text("# constants")
 
         import shutil
+
         tmp_dir = pathlib.Path(tempfile.mkdtemp())
         py_dir = tmp_dir / "code"
         try:
@@ -335,7 +345,9 @@ class TestDeploy(unittest.TestCase):
         mock_installer = MagicMock()
         mock_installer.cache_root = pathlib.Path("/cache")
 
-        with patch("robotpy_installer.cli_deploy.pypackages.get_pip_cache_packages") as mock_get:
+        with patch(
+            "robotpy_installer.cli_deploy.pypackages.get_pip_cache_packages"
+        ) as mock_get:
             mock_get.return_value = {"robotpy": ("2024.0.0",)}
 
             # First call should fetch
@@ -353,8 +365,12 @@ class TestDeploy(unittest.TestCase):
         """Test that robot packages are cached after first retrieval"""
         mock_ssh = MagicMock()
 
-        with patch("robotpy_installer.cli_deploy.roborio_utils.get_rio_py_packages") as mock_get:
-            with patch("robotpy_installer.cli_deploy.pypackages.make_packages") as mock_make:
+        with patch(
+            "robotpy_installer.cli_deploy.roborio_utils.get_rio_py_packages"
+        ) as mock_get:
+            with patch(
+                "robotpy_installer.cli_deploy.pypackages.make_packages"
+            ) as mock_make:
                 mock_get.return_value = [("robotpy", "2024.0.0")]
                 mock_make.return_value = {"robotpy": ("2024.0.0",)}
 

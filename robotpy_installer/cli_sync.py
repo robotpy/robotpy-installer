@@ -30,12 +30,12 @@ class Sync:
         # Version of robotpy this project depends on
         robotpy_version = "{robotpy_version}"
 
-        # Which extras should be installed
-        # -> equivalent to `pip install robotpy[extra1, ...]
-        robotpy_extras = []
+        # Which optional RobotPy components should be installed?
+        # -> equivalent to `pip install robotpy[component1, ...]
+        components = []
 
-        # Other pip packages to install (each element is equivalent to
-        # a line in requirements.txt)
+        # Other pip packages to install, such as vendor packages (each element
+        # is equivalent to a line in requirements.txt)
         requires = []
 
     If no pyproject.toml exists, a default is created using the current robotpy

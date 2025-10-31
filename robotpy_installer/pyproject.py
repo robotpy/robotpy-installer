@@ -50,7 +50,7 @@ class RobotPyProjectToml:
         robotpy_version = "2024.0.0b4"
 
         # equivalent to `robotpy[cscore, ...]`
-        robotpy_extras = ["cscore"]
+        components = ["cscore"]
 
         # Other pip installable requirement lines
         requires = [
@@ -62,17 +62,17 @@ class RobotPyProjectToml:
     #: Version of robotpy that is depended on
     robotpy_version: Version
 
-    robotpy_extras: typing.List[str] = dataclasses.field(default_factory=list)
+    components: typing.List[str] = dataclasses.field(default_factory=list)
 
     #: Requirement for the robotpy meta package -- all RobotPy projects must
     #: depend on it
     @property
     def robotpy_requires(self) -> Requirement:
-        if self.robotpy_extras:
-            extras = f"[{','.join(self.robotpy_extras)}]"
+        if self.components:
+            components = f"[{','.join(self.components)}]"
         else:
-            extras = ""
-        return Requirement(f"robotpy{extras}=={self.robotpy_version}")
+            components = ""
+        return Requirement(f"robotpy{components}=={self.robotpy_version}")
 
     #: User's custom requirements
     requires: typing.List[Requirement] = dataclasses.field(default_factory=list)
@@ -373,6 +373,7 @@ def write_default_gitignore(project_path: pathlib.Path):
 
 def write_default_pyproject(
     project_path: pathlib.Path,
+    robotpy_version: typing.Optional[str] = None,
 ):
     """
     Using the current environment, write a minimal pyproject.toml
@@ -380,13 +381,20 @@ def write_default_pyproject(
     :param project_path: Path to robot project
     """
 
-    robotpy_version = robotpy_installed_version()
+    if robotpy_version is None:
+        robotpy_version = robotpy_installed_version()
 
-    provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    try:
+        provides_extra = metadata("robotpy").get_all("Provides-Extra")
+    except PackageNotFoundError:
+        provides_extra = []
+
     if not provides_extra:
         extras = ""
     else:
-        extras = "\n    # ".join(f'"{extra}",' for extra in sorted(provides_extra))
+        extras = "    #" + "\n    # ".join(
+            f'"{extra}",' for extra in sorted(provides_extra)
+        )
 
     content = inspect.cleandoc(
         f"""
@@ -401,13 +409,14 @@ def write_default_pyproject(
             # Version of robotpy this project depends on
             robotpy_version = "{robotpy_version}"
             
-            # Which extra RobotPy components should be installed
+            # Which optional robotpy components should be installed?
             # -> equivalent to `pip install robotpy[extra1, ...]
-            robotpy_extras = [
-                # ##EXTRAS##
+            components = [
+            ##EXTRAS##
             ]
 
-            # Other pip packages to install
+            # Other pip packages to install, such as vendor packages (each element
+            # is equivalent to a line in requirements.txt)
             requires = []
 
         """
@@ -484,13 +493,18 @@ def _load(
         )
         raise UnsupportedRobotpyVersion(msg)
 
-    robotpy_extras_any = robotpy_data.get("robotpy_extras")
-    if isinstance(robotpy_extras_any, list):
-        robotpy_extras = list(map(str, robotpy_extras_any))
-    elif not robotpy_extras_any:
-        robotpy_extras = []
+    if "robotpy_extras" in robotpy_data:
+        raise PyprojectError(
+            "'robotpy_extras' has been replaced with 'components', see the documentation for details"
+        )
+
+    components_any = robotpy_data.get("components")
+    if isinstance(components_any, list):
+        components = list(map(str, components_any))
+    elif not components_any:
+        components = []
     else:
-        robotpy_extras = [str(robotpy_extras_any)]
+        components = [str(components_any)]
 
     requires_any = robotpy_data.get("requires")
     if isinstance(requires_any, list):
@@ -504,7 +518,7 @@ def _load(
 
     return RobotPyProjectToml(
         robotpy_version=robotpy_version,
-        robotpy_extras=robotpy_extras,
+        components=components,
         requires=requires,
     )
 

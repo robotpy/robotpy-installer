@@ -535,6 +535,8 @@ class RobotpyInstaller:
         if retval != 0:
             raise InstallerException("pip download failed")
 
+        # Changes the name of the wheel to support the more generic "linux_roborio" platform
+        # This is a dubious hack, but should generally work in practice
         for platform in _ROBOTPY_PYTHON_ADDITIONAL_PLATFORMS:
             for wheel in self.pip_cache.glob(f"*-{platform}.whl"):
                 file_name = wheel.name

@@ -36,6 +36,9 @@ _ROBORIO2_IMAGES = [
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
+_ROBOTPY_PYTHON_ADDITIONAL_PLATFORMS = [
+    "linux_armv7l",
+]
 _ROBOTPY_PYTHON_VERSION_TUPLE = (3, 13)
 _ROBOTPY_PYTHON_VERSION_NUM = "".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
@@ -510,6 +513,9 @@ class RobotpyInstaller:
             str(self.pip_cache),
         ]
 
+        for platform in _ROBOTPY_PYTHON_ADDITIONAL_PLATFORMS:
+            pip_args.extend(["--platform", platform])
+
         self._extend_pip_args(
             pip_args,
             None,
@@ -528,6 +534,14 @@ class RobotpyInstaller:
         retval = subprocess.call(pip_args)
         if retval != 0:
             raise InstallerException("pip download failed")
+
+        for platform in _ROBOTPY_PYTHON_ADDITIONAL_PLATFORMS:
+            for wheel in self.pip_cache.glob(f"*-{platform}.whl"):
+                file_name = wheel.name
+                new_name = file_name.replace(platform, _ROBOTPY_PYTHON_PLATFORM)
+                target = self.pip_cache / new_name
+                wheel.rename(target)
+
 
     def pip_install(
         self,

@@ -544,7 +544,6 @@ class RobotpyInstaller:
                 target = self.pip_cache / new_name
                 wheel.rename(target)
 
-
     def pip_install(
         self,
         force_reinstall: bool,

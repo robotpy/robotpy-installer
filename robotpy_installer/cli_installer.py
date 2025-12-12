@@ -237,6 +237,12 @@ def common_pip_options(
     )
 
     parser.add_argument(
+        "--find-links",
+        help="Tell pip to search a specified URL or a local directory",
+        type=pathlib.Path,
+    )
+
+    parser.add_argument(
         "packages",
         nargs="*",
         help="Packages to be processed",
@@ -256,13 +262,14 @@ class InstallerDownload:
     @handle_cli_error
     def run(
         self,
+        find_links: typing.Optional[pathlib.Path],
         no_deps: bool,
         pre: bool,
         requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
     ):
         installer = RobotpyInstaller()
-        installer.pip_download(no_deps, pre, requirements, packages)
+        installer.pip_download(no_deps, pre, requirements, packages, find_links)
 
 
 class InstallerInstall:

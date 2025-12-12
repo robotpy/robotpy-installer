@@ -7,7 +7,7 @@ name = "robotpy-installer"
 dynamic = ["version"]
 description = "Installation utility program for RobotPy"
 readme = "README.rst"
-requires-python = ">=3.9"
+requires-python = ">=3.10"
 authors = [
     { name = "RobotPy Development Team", email = "robotpy@googlegroups.com" },
 ]
@@ -27,7 +27,7 @@ dependencies = [
     "paramiko",
     "pip",
     "pynetconsole~=2.0.2",
-    "robotpy-cli~=2024.0",
+    "robotpy-cli~=2026.0.1b1",
     "tomli",
     "tomlkit",
 ]
@@ -38,7 +38,7 @@ dependencies = [
 [project.scripts]
 robotpy-installer = "robotpy_installer.installer:main"
 
-[project.entry-points.robotpy]
+[project.entry-points."robotpy_cli.2026"]
 deploy = "robotpy_installer.cli_deploy:Deploy"
 deploy-info = "robotpy_installer.cli_deploy_info:DeployInfo"
 init = "robotpy_installer.cli_init:Init"

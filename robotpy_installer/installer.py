@@ -22,27 +22,27 @@ from .errors import Error, SshExecError
 from .sshcontroller import SshController, ssh_from_cfg
 from .utils import _urlretrieve
 
-_WPILIB_YEAR = "2025"
-_IS_BETA = False
+_WPILIB_YEAR = "2026"
+_IS_BETA = True
 
 _ROBORIO_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2025_v2.0",
+    "2026_v1.2",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2025_v2.0",
+    "2026_v1.2",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_roborio"
-_ROBOTPY_PYTHON_VERSION_TUPLE = (3, 13)
+_ROBOTPY_PYTHON_VERSION_TUPLE = (3, 14)
 _ROBOTPY_PYTHON_VERSION_NUM = "".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
 _PIP_STUB_PATH = "/home/admin/rpip"
 
-_PYTHON_IPK = "https://github.com/robotpy/roborio-python/releases/download/2025-3.13.1-r1/python313_3.13.1-r1_cortexa9-vfpv3.ipk"
+_PYTHON_IPK = "https://github.com/robotpy/roborio-python/releases/download/2026-3.14.0-r1/python314_3.14.0-r1_cortexa9-vfpv3.ipk"
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -659,10 +659,10 @@ class RobotpyInstaller:
         versions = [Version(v) for v in data["versions"]]
 
         # Sort the versions
-        maxv = Version(str(int(_WPILIB_YEAR) + 1))
+        major = int(_WPILIB_YEAR)
 
         def _version_ok(v: Version) -> bool:
-            ok = v < maxv and not v.is_devrelease
+            ok = v.major == major and not v.is_devrelease
             if ok and not _IS_BETA:
                 ok = not v.is_prerelease
             return ok

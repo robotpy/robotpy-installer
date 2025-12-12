@@ -469,6 +469,7 @@ class RobotpyInstaller:
         pre: bool,
         requirements: typing.Sequence[pathlib.Path],
         packages: typing.Sequence[str],
+        find_links: typing.Optional[pathlib.Path],
     ):
         """
         Specify Python package(s) to download, and store them in the cache.
@@ -509,6 +510,9 @@ class RobotpyInstaller:
             "-d",
             str(self.pip_cache),
         ]
+
+        if find_links:
+            pip_args += ["--find-links", str(find_links)]
 
         self._extend_pip_args(
             pip_args,

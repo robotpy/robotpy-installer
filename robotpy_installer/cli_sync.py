@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import typing as T
 
 from packaging.version import Version
 
@@ -74,11 +75,18 @@ class Sync:
             help="Do not check to see if the project can be upgraded",
         )
 
+        parser.add_argument(
+            "--find-links",
+            help="Tell pip to search a specified URL or a local directory",
+            type=pathlib.Path,
+        )
+
     @handle_cli_error
     def run(
         self,
         project_path: pathlib.Path,
         main_file: pathlib.Path,
+        find_links: T.Optional[pathlib.Path],
         no_install: bool,
         no_upgrade_project: bool,
         user: bool,
@@ -149,6 +157,7 @@ class Sync:
             pre=False,
             requirements=[],
             packages=packages,
+            find_links=find_links,
         )
 
         #

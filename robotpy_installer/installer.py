@@ -45,7 +45,7 @@ _ROBOTPY_MANYLINUX_MIN = 17
 _ROBOTPY_MANYLINUX_MAX = 38
 
 # TODO: should we rehost this to ensure control?
-_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20250712/cpython-3.13.5+20250712-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
 
 _ROBOT_VENV = "/home/systemcore/venv"
 _ROBOT_PYTHON_PREFIX = f"/home/systemcore/.python"

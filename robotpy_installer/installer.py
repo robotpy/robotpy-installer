@@ -175,24 +175,20 @@ class RobotpyInstaller:
         #    to only install a package if it's not already installed
         opkg_files = []
 
-        opkg_script = inspect.cleandoc(
-            """
+        opkg_script = inspect.cleandoc("""
             set -e
             PACKAGES=()
             DO_INSTALL=0
-            """
-        )
+            """)
 
-        opkg_script_bit = inspect.cleandoc(
-            f"""
+        opkg_script_bit = inspect.cleandoc(f"""
             if ! opkg list-installed | grep -F "%(name)s - %(version)s"; then
                 PACKAGES+=("http://localhost:{self.cache_server.port}/opkg_cache/%(fname)s")
                 DO_INSTALL=1
             else
                 echo "%(name)s already installed"
             fi
-            """
-        )
+            """)
 
         for package in packages:
             pkgname, pkgversion, _ = package.name.split("_")
@@ -209,9 +205,7 @@ class RobotpyInstaller:
             opkg_files.append(package.name)
 
         # Finish it out
-        opkg_script += "\n" + (
-            inspect.cleandoc(
-                """
+        opkg_script += "\n" + (inspect.cleandoc("""
                 if [ "${DO_INSTALL}" == "0" ]; then
                     echo "No packages to install."
                 else
@@ -221,10 +215,7 @@ class RobotpyInstaller:
 
                 sync
                 ldconfig
-                """
-            )
-            % {"options": "--force-reinstall" if force_reinstall else ""}
-        )
+                """) % {"options": "--force-reinstall" if force_reinstall else ""})
 
         with catch_ssh_error("creating opkg install script"):
             # write to /tmp so that it doesn't persist
@@ -356,15 +347,11 @@ class RobotpyInstaller:
 
         with catch_ssh_error("checking for pip3"):
             if self.ssh.exec_cmd("[ -x /usr/local/bin/pip3 ]").returncode != 0:
-                raise InstallerException(
-                    inspect.cleandoc(
-                        """
+                raise InstallerException(inspect.cleandoc("""
                         pip3 not found on RoboRIO, did you install python?
 
                         Use the 'download-python' and 'install-python' commands first!
-                        """
-                    )
-                )
+                        """))
 
         # Use pip stub to override the wheel platform on roborio
         with catch_ssh_error("copying pip stub"):

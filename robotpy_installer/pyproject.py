@@ -134,8 +134,7 @@ def write_default_gitignore(project_path: pathlib.Path):
     :param project_path: Path to robot project
     """
 
-    ignore_content = inspect.cleandoc(
-        """
+    ignore_content = inspect.cleandoc("""
     # Log file
     *.log
 
@@ -362,8 +361,7 @@ def write_default_gitignore(project_path: pathlib.Path):
 
     # PyPI configuration file
     .pypirc
-        """
-    )
+        """)
 
     ignore_content += "\n"
 
@@ -396,8 +394,7 @@ def write_default_pyproject(
             f'"{extra}",' for extra in sorted(provides_extra)
         )
 
-    content = inspect.cleandoc(
-        f"""
+    content = inspect.cleandoc(f"""
             
             #
             # Use this configuration file to control what RobotPy packages are installed
@@ -419,8 +416,7 @@ def write_default_pyproject(
             # is equivalent to a line in requirements.txt)
             requires = []
 
-        """
-    )
+        """)
 
     content += "\n"
     content = content.replace("##EXTRAS##", extras)

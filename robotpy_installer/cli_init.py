@@ -10,7 +10,6 @@ from . import pyproject
 from .errors import Error
 from .utils import handle_cli_error
 
-
 logger = logging.getLogger("init")
 
 

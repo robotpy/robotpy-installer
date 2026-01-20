@@ -184,17 +184,13 @@ class Sync:
                 os.execv(sys.executable, pip_args)
 
             with tempfile.NamedTemporaryFile("w", delete=False, suffix=".py") as fp:
-                fp.write(
-                    inspect.cleandoc(
-                        f"""
+                fp.write(inspect.cleandoc(f"""
                         import os, subprocess
                         subprocess.run({pip_args!r})
                         print()
                         input("Install complete, press enter to continue")
                         os.unlink(__file__)
-                    """
-                    )
-                )
+                    """))
 
             print("pip is launching in a new window to complete the installation")
             subprocess.Popen(

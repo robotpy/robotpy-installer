@@ -105,6 +105,11 @@ class SshController:
             retval = channel.recv_exit_status()
 
         if check and retval != 0:
+            if not print_output:
+                try:
+                    print(buffer.getvalue(), file=sys.stderr)
+                except UnicodeEncodeError:
+                    pass
             raise SshExecError(
                 "Command '%s' returned non-zero error status %s" % (cmd, retval),
                 retval,

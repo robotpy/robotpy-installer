@@ -520,6 +520,64 @@ class RobotpyInstaller:
         if retval != 0:
             raise InstallerException("pip download failed")
 
+    def pip_wheel(
+        self,
+        no_deps: bool,
+        pre: bool,
+        requirements: typing.Sequence[pathlib.Path],
+        packages: typing.Sequence[str],
+        find_links: typing.Optional[pathlib.Path],
+    ):
+        """
+        Build wheel(s) for Python package(s) and store them in the cache.
+
+        This is primarily needed for direct URL/VCS requirements, because
+        ``pip download`` may only cache a source archive for those.
+        """
+
+        if not requirements and not packages:
+            raise InstallerException("You must give at least one requirement to wheel")
+
+        try:
+            import pip  # type: ignore
+        except ImportError:
+            raise InstallerException(
+                "ERROR: pip must be installed to build python wheels"
+            )
+
+        self.pip_cache.mkdir(parents=True, exist_ok=True)
+
+        pip_args = [
+            sys.executable,
+            "-m",
+            "pip",
+            "--disable-pip-version-check",
+            "wheel",
+            "-w",
+            str(self.pip_cache),
+        ]
+
+        if find_links:
+            pip_args += ["--find-links", str(find_links)]
+
+        self._extend_pip_args(
+            pip_args,
+            None,
+            False,
+            False,
+            no_deps,
+            pre,
+            requirements,
+        )
+
+        pip_args.extend(packages)
+
+        logger.debug("Using pip to build wheels: %s", pip_args)
+
+        retval = subprocess.call(pip_args)
+        if retval != 0:
+            raise InstallerException("pip wheel failed")
+
     def pip_install(
         self,
         force_reinstall: bool,

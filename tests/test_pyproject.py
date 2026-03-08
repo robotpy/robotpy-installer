@@ -118,7 +118,10 @@ def test_get_deploy_list_resolves_direct_url_to_wheel():
         canonicalize_name("robotpy"): [
             pypackages.CacheVersion(f"{YEAR}.1.1.2", pathlib.Path("/tmp/robotpy.whl"))
         ],
-        canonicalize_name("frc3484"): [pypackages.CacheVersion("1.2.3", wheel)],
+        canonicalize_name("frc3484"): [
+            pypackages.CacheVersion("1.2.3", pathlib.Path("/tmp/frc3484-1.2.3.zip")),
+            pypackages.CacheVersion("1.2.3", wheel),
+        ],
     }
 
     assert project.get_deploy_list(cached) == [f"robotpy=={YEAR}.1.1.2", str(wheel)]

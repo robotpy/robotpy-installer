@@ -114,6 +114,17 @@ class RobotPyProjectToml:
     def get_install_list(self) -> typing.List[str]:
         return list(map(str, self.get_install_reqs()))
 
+    def get_deploy_list(self, cached_packages: Packages) -> typing.List[str]:
+        deploy_list = []
+        for req in self.get_install_reqs():
+            if req.url is not None:
+                deploy_list.append(
+                    str(pypackages.get_cache_req_download_path(req, cached_packages))
+                )
+            else:
+                deploy_list.append(str(req))
+        return deploy_list
+
 
 def robotpy_installed_version() -> str:
     # this is a bit weird because this project doesn't depend on robotpy, it's

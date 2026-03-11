@@ -91,15 +91,13 @@ def uninstall_cpp_java_admin(ssh: SshController):
 
 def get_rio_py_packages(ssh: SshController) -> typing.Dict[str, str]:
     # Use importlib.metadata instead of pip because it's way faster than pip
-    result = ssh.exec_cmd(
+    output = ssh.check_output(
         "/usr/local/bin/python3 -c "
         "'from importlib.metadata import distributions;"
         "import json; import sys; "
         "json.dump({dist.name: dist.version for dist in distributions()},sys.stdout)'",
-        get_output=True,
     )
-    assert result.stdout is not None
-    d = json.loads(result.stdout)
+    d = json.loads(output)
     # sometimes distributions.name or version is None
     return {k: v for k, v in d.items() if k and v}
 

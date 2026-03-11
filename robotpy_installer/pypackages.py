@@ -109,6 +109,49 @@ def extra_resolver_local(req: Requirement, env: Env) -> typing.List[Requirement]
     return extra_reqs
 
 
+def get_cache_req_download_path(req: Requirement, packages: Packages) -> pathlib.Path:
+    """
+    Resolves a requirement to a downloaded file in the cache.
+
+    For direct URL requirements used by deploy, this allows us to install the
+    exact downloaded wheel instead of passing the original URL to pip on the
+    RoboRIO.
+    """
+
+    creqs = packages.get(canonicalize_name(req.name))
+    if creqs is None:
+        raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
+
+    req.specifier.prereleases = True
+
+    wheel_path = None
+    any_path = None
+
+    for creq in sorted(creqs, reverse=True):
+        if req.specifier and creq not in req.specifier:
+            continue
+
+        if not isinstance(creq, CacheVersion):
+            raise ValueError("internal error")
+
+        if any_path is None:
+            any_path = creq.file_path
+
+        if creq.file_path.suffix == ".whl":
+            wheel_path = creq.file_path
+            break
+
+    if wheel_path is not None:
+        return wheel_path
+
+    if any_path is not None:
+        raise KeyError(
+            f"{req} was downloaded to cache, but not as a wheel: {any_path.name}"
+        )
+
+    raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
+
+
 def make_cache_extra_resolver(packages: Packages) -> ExtraResolver:
     """
     :param packages: The list of packages in the cache as returned by
@@ -122,22 +165,7 @@ def make_cache_extra_resolver(packages: Packages) -> ExtraResolver:
         env = env.copy()
         env["extra"] = ",".join(req.extras)
 
-        # Find the requirement
-        creqs = packages.get(canonicalize_name(req.name))
-        if creqs is None:
-            raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
-
-        req.specifier.prereleases = True
-        for creq in sorted(creqs, reverse=True):
-            if req.specifier is None or creq in req.specifier:
-                break
-        else:
-            raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
-
-        if not isinstance(creq, CacheVersion):
-            raise ValueError("internal error")
-
-        m = metadata_from_wheel(creq.file_path)
+        m = metadata_from_wheel(get_cache_req_download_path(req, packages))
         if m.requires_dist:
             return evaluate_extras_markers(m.requires_dist, env, req.extras)
 

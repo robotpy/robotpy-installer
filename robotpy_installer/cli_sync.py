@@ -138,7 +138,9 @@ class Sync:
         except pyproject.NoRobotpyError:
             pass
 
-        packages = project.get_install_list()
+        install_reqs = project.get_install_reqs()
+        packages = list(map(str, install_reqs))
+        direct_url_packages = [str(req) for req in install_reqs if req.url is not None]
 
         logger.info("Robot project requirements:")
         for package in packages:
@@ -159,6 +161,16 @@ class Sync:
             packages=packages,
             find_links=find_links,
         )
+
+        if direct_url_packages:
+            logger.info("Building wheels for direct URL requirements")
+            installer.pip_wheel(
+                no_deps=True,
+                pre=False,
+                requirements=[],
+                packages=direct_url_packages,
+                find_links=find_links,
+            )
 
         #
         # Local requirement installation

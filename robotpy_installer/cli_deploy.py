@@ -534,7 +534,6 @@ class Deploy:
 
                 if not requirements_installed:
                     assert project is not None
-                    packages = project.get_install_list()
 
                     # Check if everything is in the cache before doing the install
                     cached = self._get_cached_packages(installer)
@@ -552,6 +551,11 @@ class Deploy:
                             "from the internet (or specify --no-install to not attempt installation).",
                         ]
                         raise Error("\n".join(errmsg))
+
+                    try:
+                        packages = project.get_deploy_list(cached)
+                    except KeyError as e:
+                        raise Error(str(e)) from e
 
                     if not no_uninstall:
                         logger.info(

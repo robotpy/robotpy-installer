@@ -1,10 +1,12 @@
 import inspect
+import pathlib
 import typing
 
 from robotpy_installer import pyproject, pypackages
 from robotpy_installer.installer import _WPILIB_YEAR as YEAR
 
 from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
 
 
 def load_project(content: str) -> pyproject.RobotPyProjectToml:
@@ -100,3 +102,51 @@ def test_env_marker():
         True,
         [],
     )
+
+
+def test_get_deploy_list_resolves_direct_url_to_wheel():
+    project = load_project(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "frc3484 @ git+https://github.com/FRC-Team3484/FRC3484_Lib_Python.git@main"
+        ]
+    """)
+
+    wheel = pathlib.Path("/tmp/frc3484-1.2.3-py3-none-any.whl")
+    cached = {
+        canonicalize_name("robotpy"): [
+            pypackages.CacheVersion(f"{YEAR}.1.1.2", pathlib.Path("/tmp/robotpy.whl"))
+        ],
+        canonicalize_name("frc3484"): [
+            pypackages.CacheVersion("1.2.3", pathlib.Path("/tmp/frc3484-1.2.3.zip")),
+            pypackages.CacheVersion("1.2.3", wheel),
+        ],
+    }
+
+    assert project.get_deploy_list(cached) == [f"robotpy=={YEAR}.1.1.2", str(wheel)]
+
+
+def test_get_deploy_list_requires_wheel_for_direct_url():
+    project = load_project(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "frc3484 @ git+https://github.com/FRC-Team3484/FRC3484_Lib_Python.git@main"
+        ]
+    """)
+
+    cached = {
+        canonicalize_name("robotpy"): [
+            pypackages.CacheVersion(f"{YEAR}.1.1.2", pathlib.Path("/tmp/robotpy.whl"))
+        ],
+        canonicalize_name("frc3484"): [
+            pypackages.CacheVersion("1.2.3", pathlib.Path("/tmp/frc3484-1.2.3.tar.gz"))
+        ],
+    }
+
+    try:
+        project.get_deploy_list(cached)
+        assert False
+    except KeyError as e:
+        assert "not as a wheel" in str(e)

@@ -519,9 +519,15 @@ class Deploy:
                     ]
                     raise Error("\n".join(errmsg))
 
-                if not no_uninstall:
-                    logger.info(
-                        "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
+                if not requirements_installed:
+                    assert project is not None
+
+                    # Check if everything is in the cache before doing the install
+                    cached = self._get_cached_packages(installer)
+                    ok, missing = project.are_requirements_met(
+                        cached,
+                        pypackages.robot_env(),
+                        pypackages.make_cache_extra_resolver(cached),
                     )
                     # The user may have deleted something from the project
                     # requirements so the only way to ensure the exact
@@ -530,9 +536,21 @@ class Deploy:
                     #   resolving everything
                     self._clear_pip_packages(installer)
 
-                logger.info("Installing project requirements on robot:")
-                for package in packages:
-                    logger.info("- %s", package)
+                    try:
+                        packages = project.get_deploy_list(cached)
+                    except KeyError as e:
+                        raise Error(str(e)) from e
+
+                    if not no_uninstall:
+                        logger.info(
+                            "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
+                        )
+                        # The user may have deleted something from the project
+                        # requirements so the only way to ensure the exact
+                        # environment is to first clear the environment.
+                        # - can't do a partial uninstall without completely
+                        #   resolving everything
+                        self._clear_pip_packages(installer)
 
                 try:
                     installer.pip_install(False, False, False, False, [], packages)

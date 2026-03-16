@@ -4,7 +4,6 @@ import json
 import pathlib
 import typing
 
-
 logger = logging.getLogger("robotpy.installer")
 
 

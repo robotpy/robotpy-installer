@@ -114,6 +114,17 @@ class RobotPyProjectToml:
     def get_install_list(self) -> typing.List[str]:
         return list(map(str, self.get_install_reqs()))
 
+    def get_deploy_list(self, cached_packages: Packages) -> typing.List[str]:
+        deploy_list = []
+        for req in self.get_install_reqs():
+            if req.url is not None:
+                deploy_list.append(
+                    str(pypackages.get_cache_req_download_path(req, cached_packages))
+                )
+            else:
+                deploy_list.append(str(req))
+        return deploy_list
+
 
 def robotpy_installed_version() -> str:
     # this is a bit weird because this project doesn't depend on robotpy, it's
@@ -134,8 +145,7 @@ def write_default_gitignore(project_path: pathlib.Path):
     :param project_path: Path to robot project
     """
 
-    ignore_content = inspect.cleandoc(
-        """
+    ignore_content = inspect.cleandoc("""
     # Log file
     *.log
 
@@ -362,8 +372,7 @@ def write_default_gitignore(project_path: pathlib.Path):
 
     # PyPI configuration file
     .pypirc
-        """
-    )
+        """)
 
     ignore_content += "\n"
 
@@ -396,8 +405,7 @@ def write_default_pyproject(
             f'"{extra}",' for extra in sorted(provides_extra)
         )
 
-    content = inspect.cleandoc(
-        f"""
+    content = inspect.cleandoc(f"""
             
             #
             # Use this configuration file to control what RobotPy packages are installed
@@ -419,8 +427,7 @@ def write_default_pyproject(
             # is equivalent to a line in requirements.txt)
             requires = []
 
-        """
-    )
+        """)
 
     content += "\n"
     content = content.replace("##EXTRAS##", extras)

@@ -6,6 +6,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import typing as T
 
 from packaging.version import Version
 
@@ -74,11 +75,18 @@ class Sync:
             help="Do not check to see if the project can be upgraded",
         )
 
+        parser.add_argument(
+            "--find-links",
+            help="Tell pip to search a specified URL or a local directory",
+            type=pathlib.Path,
+        )
+
     @handle_cli_error
     def run(
         self,
         project_path: pathlib.Path,
         main_file: pathlib.Path,
+        find_links: T.Optional[pathlib.Path],
         no_install: bool,
         no_upgrade_project: bool,
         user: bool,
@@ -130,7 +138,9 @@ class Sync:
         except pyproject.NoRobotpyError:
             pass
 
-        packages = project.get_install_list()
+        install_reqs = project.get_install_reqs()
+        packages = list(map(str, install_reqs))
+        direct_url_packages = [str(req) for req in install_reqs if req.url is not None]
 
         logger.info("Robot project requirements:")
         for package in packages:
@@ -149,7 +159,18 @@ class Sync:
             pre=False,
             requirements=[],
             packages=packages,
+            find_links=find_links,
         )
+
+        if direct_url_packages:
+            logger.info("Building wheels for direct URL requirements")
+            installer.pip_wheel(
+                no_deps=True,
+                pre=False,
+                requirements=[],
+                packages=direct_url_packages,
+                find_links=find_links,
+            )
 
         #
         # Local requirement installation
@@ -175,17 +196,13 @@ class Sync:
                 os.execv(sys.executable, pip_args)
 
             with tempfile.NamedTemporaryFile("w", delete=False, suffix=".py") as fp:
-                fp.write(
-                    inspect.cleandoc(
-                        f"""
+                fp.write(inspect.cleandoc(f"""
                         import os, subprocess
                         subprocess.run({pip_args!r})
                         print()
                         input("Install complete, press enter to continue")
                         os.unlink(__file__)
-                    """
-                    )
-                )
+                    """))
 
             print("pip is launching in a new window to complete the installation")
             subprocess.Popen(

@@ -28,15 +28,15 @@ _IS_BETA = True
 _ROBOT_WHEELS = f"https://wpilib.jfrog.io/artifactory/api/pypi/wpilib-python-release-{_WPILIB_YEAR}/simple"
 
 _ROBORIO_IMAGES = [
-    "2025_v2.0",
+    "2026_v1.2",
 ]
 
 _ROBORIO2_IMAGES = [
-    "2025_v2.0",
+    "2026_v1.2",
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_systemcore"
-_ROBOTPY_PYTHON_VERSION_TUPLE = (3, 13)
+_ROBOTPY_PYTHON_VERSION_TUPLE = (3, 14)
 _ROBOTPY_PYTHON_VERSION_NUM = "".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
 
@@ -45,7 +45,7 @@ _ROBOTPY_MANYLINUX_MIN = 17
 _ROBOTPY_MANYLINUX_MAX = 38
 
 # TODO: should we rehost this to ensure control?
-_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20250712/cpython-3.13.5+20250712-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
 
 _ROBOT_VENV = "/home/systemcore/venv"
 _ROBOT_PYTHON_PREFIX = f"/home/systemcore/.python"
@@ -181,24 +181,20 @@ class RobotpyInstaller:
         #    to only install a package if it's not already installed
         opkg_files = []
 
-        opkg_script = inspect.cleandoc(
-            """
+        opkg_script = inspect.cleandoc("""
             set -e
             PACKAGES=()
             DO_INSTALL=0
-            """
-        )
+            """)
 
-        opkg_script_bit = inspect.cleandoc(
-            f"""
+        opkg_script_bit = inspect.cleandoc(f"""
             if ! opkg list-installed | grep -F "%(name)s - %(version)s"; then
                 PACKAGES+=("http://localhost:{self.cache_server.port}/opkg_cache/%(fname)s")
                 DO_INSTALL=1
             else
                 echo "%(name)s already installed"
             fi
-            """
-        )
+            """)
 
         for package in packages:
             pkgname, pkgversion, _ = package.name.split("_")
@@ -215,9 +211,7 @@ class RobotpyInstaller:
             opkg_files.append(package.name)
 
         # Finish it out
-        opkg_script += "\n" + (
-            inspect.cleandoc(
-                """
+        opkg_script += "\n" + (inspect.cleandoc("""
                 if [ "${DO_INSTALL}" == "0" ]; then
                     echo "No packages to install."
                 else
@@ -227,10 +221,7 @@ class RobotpyInstaller:
 
                 sync
                 ldconfig
-                """
-            )
-            % {"options": "--force-reinstall" if force_reinstall else ""}
-        )
+                """) % {"options": "--force-reinstall" if force_reinstall else ""})
 
         with catch_ssh_error("creating opkg install script"):
             # write to /tmp so that it doesn't persist
@@ -351,15 +342,11 @@ class RobotpyInstaller:
         #
 
         if not self.is_python_installed():
-            raise InstallerException(
-                inspect.cleandoc(
-                    """
+            raise InstallerException(inspect.cleandoc("""
                         python3 not found on SystemCore, did you install python?
 
                         Use the 'download-python' and 'install-python' commands first!
-                        """
-                )
-            )
+                        """))
 
         #
         # Ensure our venv exists
@@ -507,6 +494,7 @@ class RobotpyInstaller:
         pre: bool,
         requirements: typing.Sequence[pathlib.Path],
         packages: typing.Sequence[str],
+        find_links: typing.Optional[pathlib.Path],
     ):
         """
         Specify Python package(s) to download, and store them in the cache.
@@ -564,6 +552,9 @@ class RobotpyInstaller:
             ]
         )
 
+        if find_links:
+            pip_args += ["--find-links", str(find_links)]
+
         self._extend_pip_args(
             pip_args,
             None,
@@ -582,6 +573,64 @@ class RobotpyInstaller:
         retval = subprocess.call(pip_args)
         if retval != 0:
             raise InstallerException("pip download failed")
+
+    def pip_wheel(
+        self,
+        no_deps: bool,
+        pre: bool,
+        requirements: typing.Sequence[pathlib.Path],
+        packages: typing.Sequence[str],
+        find_links: typing.Optional[pathlib.Path],
+    ):
+        """
+        Build wheel(s) for Python package(s) and store them in the cache.
+
+        This is primarily needed for direct URL/VCS requirements, because
+        ``pip download`` may only cache a source archive for those.
+        """
+
+        if not requirements and not packages:
+            raise InstallerException("You must give at least one requirement to wheel")
+
+        try:
+            import pip  # type: ignore
+        except ImportError:
+            raise InstallerException(
+                "ERROR: pip must be installed to build python wheels"
+            )
+
+        self.pip_cache.mkdir(parents=True, exist_ok=True)
+
+        pip_args = [
+            sys.executable,
+            "-m",
+            "pip",
+            "--disable-pip-version-check",
+            "wheel",
+            "-w",
+            str(self.pip_cache),
+        ]
+
+        if find_links:
+            pip_args += ["--find-links", str(find_links)]
+
+        self._extend_pip_args(
+            pip_args,
+            None,
+            False,
+            False,
+            no_deps,
+            pre,
+            requirements,
+        )
+
+        pip_args.extend(packages)
+
+        logger.debug("Using pip to build wheels: %s", pip_args)
+
+        retval = subprocess.call(pip_args)
+        if retval != 0:
+            raise InstallerException("pip wheel failed")
 
     def pip_install(
         self,
@@ -700,10 +749,10 @@ class RobotpyInstaller:
         versions = [Version(v) for v in data["versions"]]
 
         # Sort the versions
-        maxv = Version(str(int(_WPILIB_YEAR) + 1))
+        major = int(_WPILIB_YEAR)
 
         def _version_ok(v: Version) -> bool:
-            ok = v < maxv and not v.is_devrelease
+            ok = v.major == major and not v.is_devrelease
             if ok and not _IS_BETA:
                 ok = not v.is_prerelease
             return ok

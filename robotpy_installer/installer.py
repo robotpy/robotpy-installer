@@ -342,15 +342,11 @@ class RobotpyInstaller:
         #
 
         if not self.is_python_installed():
-            raise InstallerException(
-                inspect.cleandoc(
-                    """
+            raise InstallerException(inspect.cleandoc("""
                         python3 not found on SystemCore, did you install python?
 
                         Use the 'download-python' and 'install-python' commands first!
-                        """
-                )
-            )
+                        """))
 
         #
         # Ensure our venv exists

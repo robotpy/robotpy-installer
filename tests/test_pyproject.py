@@ -152,3 +152,90 @@ def test_get_deploy_list_requires_wheel_for_direct_url():
         assert False
     except KeyError as e:
         assert "not as a wheel" in str(e)
+
+
+def test_relative_file_url_resolved_against_project(tmp_path):
+    lib_dir = tmp_path / "lib" / "bread"
+    lib_dir.mkdir(parents=True)
+
+    project_dir = tmp_path / "robots" / "template"
+    project_dir.mkdir(parents=True)
+
+    content = inspect.cleandoc(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "bread @ file://../../lib/bread",
+        ]
+    """)
+
+    project = pyproject.loads(content, base_path=project_dir)
+
+    assert len(project.requires) == 1
+    bread = project.requires[0]
+    assert bread.url == lib_dir.resolve().as_uri()
+
+
+def test_relative_file_url_with_dot_segment(tmp_path):
+    lib_dir = tmp_path / "lib" / "bread"
+    lib_dir.mkdir(parents=True)
+
+    project_dir = tmp_path / "robots" / "template"
+    project_dir.mkdir(parents=True)
+
+    # "file://./foo" form — netloc captures ".", which pip would reject.
+    content = inspect.cleandoc(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "bread @ file://./../../lib/bread",
+        ]
+    """)
+
+    project = pyproject.loads(content, base_path=project_dir)
+    assert project.requires[0].url == lib_dir.resolve().as_uri()
+
+
+def test_absolute_file_url_left_alone(tmp_path):
+    lib_dir = tmp_path / "lib" / "bread"
+    lib_dir.mkdir(parents=True)
+    abs_uri = lib_dir.as_uri()
+
+    content = inspect.cleandoc(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "bread @ {abs_uri}",
+        ]
+    """)
+
+    project = pyproject.loads(content, base_path=tmp_path)
+    assert project.requires[0].url == abs_uri
+
+
+def test_non_file_url_left_alone(tmp_path):
+    git_url = "git+https://github.com/FRC-Team3484/FRC3484_Lib_Python.git@main"
+
+    content = inspect.cleandoc(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "frc3484 @ {git_url}",
+        ]
+    """)
+
+    project = pyproject.loads(content, base_path=tmp_path)
+    assert project.requires[0].url == git_url
+
+
+def test_loads_without_base_path_preserves_url():
+    content = inspect.cleandoc(f"""
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+        requires = [
+            "bread @ file://../../lib/bread",
+        ]
+    """)
+
+    project = pyproject.loads(content)
+    assert project.requires[0].url == "file://../../lib/bread"

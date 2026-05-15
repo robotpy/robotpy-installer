@@ -3,6 +3,7 @@ from importlib.metadata import metadata, PackageNotFoundError
 import inspect
 import pathlib
 import typing
+from urllib.parse import urlparse
 
 from packaging.requirements import Requirement
 from packaging.version import Version, InvalidVersion
@@ -461,16 +462,56 @@ def load(
     with open(pyproject_path, "rb") as fp:
         data = tomli.load(fp)
 
-    return _load(str(pyproject_path), data)
+    return _load(str(pyproject_path), data, base_path=project_path)
 
 
-def loads(content: str):
+def loads(content: str, base_path: typing.Optional[pathlib.Path] = None):
     data = tomli.loads(content)
-    return _load("<string>", data)
+    return _load("<string>", data, base_path=base_path)
+
+
+def _resolve_relative_file_url(req: Requirement, base_path: pathlib.Path) -> None:
+    """Resolve a relative ``file://`` URL in a requirement to an absolute path.
+
+    Relative ``file://`` URLs (e.g. ``file://../lib/bread``) are not usable by
+    pip: ``urlparse`` interprets the first path segment as the netloc, and pip
+    rejects any non-empty, non-localhost netloc as a non-local file URI. Even
+    when the URL parses cleanly, pip resolves relative paths against its own
+    working directory, which is generally not the project directory.
+
+    We rewrite such URLs to absolute ``file://`` URLs rooted at ``base_path``,
+    so a ``requires`` entry like ``bread @ file://../../lib/bread`` in
+    ``pyproject.toml`` works the same way a path dependency does in a normal
+    Python project.
+    """
+    if not req.url:
+        return
+
+    parsed = urlparse(req.url)
+    if parsed.scheme != "file":
+        return
+
+    # If the first segment of a relative path ended up as the netloc
+    # (e.g. ``file://../lib`` → netloc=``..``, path=``/lib``), recover the
+    # original path by recombining. A netloc of "localhost" is the one
+    # well-defined case where we want to keep it stripped.
+    if parsed.netloc and parsed.netloc != "localhost":
+        raw_path = parsed.netloc + parsed.path
+    else:
+        raw_path = parsed.path
+
+    if raw_path.startswith("/"):
+        return
+
+    abs_path = (base_path / raw_path).resolve()
+    req.url = abs_path.as_uri()
 
 
 def _load(
-    pyproject_path: str, data: typing.Dict[str, typing.Any]
+    pyproject_path: str,
+    data: typing.Dict[str, typing.Any],
+    *,
+    base_path: typing.Optional[pathlib.Path] = None,
 ) -> RobotPyProjectToml:
     try:
         robotpy_data = data["tool"]["robotpy"]
@@ -522,6 +563,10 @@ def _load(
         requires = [Requirement(str(requires_any))]
     else:
         requires = []
+
+    if base_path is not None:
+        for req in requires:
+            _resolve_relative_file_url(req, base_path)
 
     return RobotPyProjectToml(
         robotpy_version=robotpy_version,

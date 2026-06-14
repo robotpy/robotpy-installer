@@ -250,14 +250,22 @@ def robot_env() -> Env:
     """
     For use with ``packaging.marker.Marker.evaluate``
     """
+    from .installer import (
+        _ROBOTPY_PYTHON_VERSION_TUPLE,
+        _ROBOTPY_PYTHON_VERSION_TUPLE_FULL,
+    )
+
+    python_version = ".".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
+    python_full_version = ".".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE_FULL))
+
     return {
         "implementation_name": "cpython",
-        "implementation_version": "3.13.5",
+        "implementation_version": python_full_version,
         "os_name": "posix",
         "platform_machine": "systemcore",
         "platform_python_implementation": "CPython",
         "platform_system": "Linux",
-        "python_full_version": "3.13.0",
-        "python_version": "3.13",
+        "python_full_version": python_full_version,
+        "python_version": python_version,
         "sys_platform": "linux",
     }

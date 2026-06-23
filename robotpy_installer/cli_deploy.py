@@ -18,7 +18,7 @@ from os.path import join, splitext
 from . import pypackages, pyproject, robot_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
-from .installer import _ROBOT_VENV_PYTHON
+from .installer import _ROBOT_VENV, _ROBOT_VENV_PYTHON
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
 
@@ -27,6 +27,7 @@ import logging
 logger = logging.getLogger("deploy")
 
 _LOCAL_DEFAULT_CACHE_ROOT = pathlib.Path("/opt/blocks/cache")
+_NO_VERIFY_WITHOUT_WARNING = object()
 
 
 @contextlib.contextmanager
@@ -245,9 +246,10 @@ class Deploy:
                 logger.info("- %s", package)
 
             if no_verify:
-                logger.warning(
-                    "Not checking to see if they are installed on SystemCore"
-                )
+                if no_verify is not _NO_VERIFY_WITHOUT_WARNING:
+                    logger.warning(
+                        "Not checking to see if they are installed on SystemCore"
+                    )
             else:
                 requirements_met, desc = project.are_local_requirements_met()
                 if not requirements_met:
@@ -555,19 +557,13 @@ class Deploy:
                         pypackages.robot_env(),
                         pypackages.make_cache_extra_resolver(cached),
                     )
-                    # The user may have deleted something from the project
-                    # requirements so the only way to ensure the exact
-                    # environment is to first clear the environment.
-                    # - can't do a partial uninstall without completely
-                    #   resolving everything
-                    self._clear_pip_packages(installer)
 
                     try:
                         packages = project.get_deploy_list(cached)
                     except KeyError as e:
                         raise Error(str(e)) from e
 
-                    if not no_uninstall:
+                    if not no_uninstall and ssh.sftp_remote_file_exists(_ROBOT_VENV):
                         logger.info(
                             "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
                         )
@@ -750,14 +746,6 @@ class LocalDeploy(Deploy):
             help="Ignore SystemCore image version",
         )
 
-        parser.add_argument(
-            "-n",
-            "--no-verify",
-            action="store_true",
-            default=False,
-            help="If specified, do not verify that the robotpy version in pyproject.toml is installed locally",
-        )
-
         install_args = parser.add_mutually_exclusive_group()
 
         install_args.add_argument(
@@ -806,7 +794,6 @@ class LocalDeploy(Deploy):
         debug: bool,
         ignore_image_version: bool,
         no_install: bool,
-        no_verify: bool,
         no_uninstall: bool,
         force_install: bool,
         large: bool,
@@ -824,7 +811,7 @@ class LocalDeploy(Deploy):
             nc_ds=False,
             ignore_image_version=ignore_image_version,
             no_install=no_install,
-            no_verify=no_verify,
+            no_verify=_NO_VERIFY_WITHOUT_WARNING,
             no_uninstall=no_uninstall,
             force_install=force_install,
             large=large,

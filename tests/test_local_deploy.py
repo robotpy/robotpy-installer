@@ -1,3 +1,4 @@
+import inspect
 import os
 import pathlib
 
@@ -112,8 +113,9 @@ def test_cache_server_serves_local_controller_files(tmp_path):
 import argparse
 from unittest.mock import MagicMock, patch
 
-from robotpy_installer.cli_deploy import Deploy, LocalDeploy
+from robotpy_installer.cli_deploy import Deploy, LocalDeploy, required_pyversion
 from robotpy_installer.cli_installer import Installer
+from robotpy_installer.installer import _ROBOT_VENV
 
 
 def _make_deploy_parser():
@@ -146,10 +148,55 @@ def test_local_deploy_parser_has_no_robot_or_test_options(tmp_path):
     assert not hasattr(args, "nc")
     assert not hasattr(args, "nc_ds")
     assert not hasattr(args, "no_resolve")
+    assert not hasattr(args, "no_verify")
 
 
 def test_local_deploy_installer_subcommand_is_registered():
     assert ("local-deploy", LocalDeploy) in Installer.subcommands
+
+
+def test_deploy_run_has_no_suppress_no_verify_warning_argument():
+    assert "suppress_no_verify_warning" not in inspect.signature(Deploy.run).parameters
+
+
+def test_local_deploy_forces_no_verify_without_warning(tmp_path):
+    deploy = LocalDeploy(argparse.ArgumentParser())
+    main_file = tmp_path / "robot.py"
+    main_file.write_text("print('robot')")
+
+    fake_project = MagicMock()
+    fake_project.get_install_list.return_value = ["robotpy"]
+    fake_installer = MagicMock()
+    fake_installer.connect_to_robot.return_value.__enter__.return_value = (
+        LocalController()
+    )
+    fake_installer.connect_to_robot.return_value.__exit__.return_value = None
+
+    with (
+        patch("robotpy_installer.cli_deploy.pyproject.load", return_value=fake_project),
+        patch(
+            "robotpy_installer.cli_deploy.RobotpyInstaller", return_value=fake_installer
+        ),
+        patch.object(deploy, "_check_large_files", return_value=True),
+        patch.object(deploy, "_ensure_requirements"),
+        patch.object(deploy, "_do_deploy", return_value=True),
+        patch("robotpy_installer.cli_deploy.logger.warning") as warning,
+    ):
+        result = deploy.run(
+            main_file=main_file,
+            project_path=tmp_path,
+            debug=False,
+            ignore_image_version=False,
+            no_install=False,
+            no_uninstall=False,
+            force_install=False,
+            large=False,
+            cache_root=None,
+        )
+
+    assert result == 0
+    fake_project.are_local_requirements_met.assert_not_called()
+    warning.assert_not_called()
 
 
 def test_local_deploy_runs_local_without_tests_or_robot_class(tmp_path):
@@ -178,7 +225,6 @@ def test_local_deploy_runs_local_without_tests_or_robot_class(tmp_path):
                 debug=False,
                 ignore_image_version=False,
                 no_install=True,
-                no_verify=False,
                 no_uninstall=False,
                 force_install=False,
                 large=False,
@@ -192,6 +238,58 @@ def test_local_deploy_runs_local_without_tests_or_robot_class(tmp_path):
     assert fake_installer.connect_to_robot.call_args.kwargs["robot_or_team"] is None
     assert isinstance(
         fake_installer.connect_to_robot.call_args.kwargs["ssh"], LocalController
+    )
+
+
+def test_ensure_requirements_does_not_clear_packages_when_venv_missing():
+    deploy = Deploy(argparse.ArgumentParser())
+    fake_project = MagicMock()
+    fake_project.are_requirements_met.side_effect = [
+        (False, ["robotpy missing"]),
+        (True, []),
+        (True, []),
+    ]
+    fake_project.get_install_list.return_value = ["robotpy"]
+    fake_project.get_deploy_list.return_value = ["robotpy"]
+
+    fake_installer = MagicMock()
+    fake_installer.is_python_installed.return_value = True
+    fake_installer.get_python_version.return_value = required_pyversion
+
+    fake_ssh = MagicMock()
+    fake_ssh.sftp_remote_file_exists.return_value = False
+
+    with (
+        patch(
+            "robotpy_installer.cli_deploy.robot_utils.uninstall_cpp_java",
+            return_value=True,
+        ),
+        patch("robotpy_installer.cli_deploy.robot_utils.kill_robot_cmd", "true"),
+        patch("robotpy_installer.cli_deploy.yesno", return_value=True),
+        patch.object(deploy, "_get_robot_packages", return_value={}),
+        patch.object(deploy, "_get_cached_packages", return_value={}),
+        patch.object(deploy, "_clear_pip_packages") as clear_pip_packages,
+        patch("robotpy_installer.cli_deploy.logger.info") as info,
+    ):
+        deploy._ensure_requirements(
+            fake_project,
+            fake_installer,
+            fake_ssh,
+            no_install=False,
+            force_install=False,
+            no_uninstall=False,
+        )
+
+    fake_ssh.sftp_remote_file_exists.assert_any_call(_ROBOT_VENV)
+    clear_pip_packages.assert_not_called()
+    assert not any(
+        call.args
+        and call.args[0]
+        == "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
+        for call in info.call_args_list
+    )
+    fake_installer.pip_install.assert_called_once_with(
+        False, False, False, False, [], ["robotpy"]
     )
 
 

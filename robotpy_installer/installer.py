@@ -362,7 +362,10 @@ class RobotpyInstaller:
         #
 
         with catch_ssh_error("checking for python venv"):
-            if not self.ssh.sftp_remote_file_exists(_ROBOT_VENV_PYTHON):
+            venv_exists = self.ssh.sftp_remote_file_exists(_ROBOT_VENV_PYTHON)
+
+        if not venv_exists:
+            with catch_ssh_error("creating new venv"):
                 self.ssh.check_output(f"{_ROBOT_PYTHON} -m venv {_ROBOT_VENV}")
 
         # Use pip stub to override the wheel platform on SystemCore

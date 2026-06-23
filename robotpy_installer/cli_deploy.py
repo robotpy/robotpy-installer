@@ -18,13 +18,16 @@ from os.path import join, splitext
 from . import pypackages, pyproject, robot_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
 from .installer import _ROBOTPY_PYTHON_VERSION_TUPLE as required_pyversion
-from .installer import _ROBOT_VENV_PYTHON
+from .installer import _ROBOT_VENV, _ROBOT_VENV_PYTHON
 from .errors import Error
 from .utils import handle_cli_error, print_err, yesno
 
 import logging
 
 logger = logging.getLogger("deploy")
+
+_LOCAL_DEFAULT_CACHE_ROOT = pathlib.Path("/opt/blocks/cache")
+_NO_VERIFY_WITHOUT_WARNING = object()
 
 
 @contextlib.contextmanager
@@ -136,6 +139,20 @@ class Deploy:
             "--team", default=None, type=int, help="Set team number to deploy robot for"
         )
 
+        robot_args.add_argument(
+            "--local",
+            action="store_true",
+            default=False,
+            help="Deploy to the current SystemCore without SSH",
+        )
+
+        parser.add_argument(
+            "--cache-root",
+            type=pathlib.Path,
+            default=None,
+            help="Override RobotPy installer cache location; defaults to /opt/blocks/cache with --local",
+        )
+
         parser.add_argument(
             "--no-resolve",
             action="store_true",
@@ -166,6 +183,8 @@ class Deploy:
         robot: typing.Optional[str],
         team: typing.Optional[int],
         no_resolve: bool,
+        local: bool,
+        cache_root: typing.Optional[pathlib.Path],
     ):
         if main_file.parent == pathlib.Path.home():
             print_err(
@@ -227,9 +246,10 @@ class Deploy:
                 logger.info("- %s", package)
 
             if no_verify:
-                logger.warning(
-                    "Not checking to see if they are installed on SystemCore"
-                )
+                if no_verify is not _NO_VERIFY_WITHOUT_WARNING:
+                    logger.warning(
+                        "Not checking to see if they are installed on SystemCore"
+                    )
             else:
                 requirements_met, desc = project.are_local_requirements_met()
                 if not requirements_met:
@@ -248,13 +268,21 @@ class Deploy:
                     )
                     raise Error(msg)
 
-        installer = RobotpyInstaller()
+        ssh: typing.Optional[sshcontroller.ControllerProtocol] = None
+        if local:
+            if cache_root is None:
+                cache_root = _LOCAL_DEFAULT_CACHE_ROOT
+            ssh = sshcontroller.LocalController()
+
+        installer = RobotpyInstaller(cache_root=cache_root)
 
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
             robot_or_team=robot or team,
             ignore_image_version=ignore_image_version,
+            no_resolve=no_resolve,
+            ssh=ssh,
         ) as ssh:
             self._ensure_requirements(
                 project,
@@ -350,7 +378,7 @@ class Deploy:
         return self._packages_in_cache
 
     def _get_robot_packages(
-        self, ssh: sshcontroller.SshController
+        self, ssh: sshcontroller.ControllerProtocol
     ) -> pypackages.Packages:
         if self._robot_packages is None:
             rio_packages = robot_utils.get_robot_py_packages(ssh)
@@ -366,7 +394,7 @@ class Deploy:
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
         installer: RobotpyInstaller,
-        ssh: sshcontroller.SshController,
+        ssh: sshcontroller.ControllerProtocol,
         no_install: bool,
         force_install: bool,
         no_uninstall: bool,
@@ -529,19 +557,13 @@ class Deploy:
                         pypackages.robot_env(),
                         pypackages.make_cache_extra_resolver(cached),
                     )
-                    # The user may have deleted something from the project
-                    # requirements so the only way to ensure the exact
-                    # environment is to first clear the environment.
-                    # - can't do a partial uninstall without completely
-                    #   resolving everything
-                    self._clear_pip_packages(installer)
 
                     try:
                         packages = project.get_deploy_list(cached)
                     except KeyError as e:
                         raise Error(str(e)) from e
 
-                    if not no_uninstall:
+                    if not no_uninstall and ssh.sftp_remote_file_exists(_ROBOT_VENV):
                         logger.info(
                             "Clearing existing packages on robot before install (specify --no-uninstall to not do this)"
                         )
@@ -563,7 +585,7 @@ class Deploy:
 
     def _do_deploy(
         self,
-        ssh: sshcontroller.SshController,
+        ssh: sshcontroller.ControllerProtocol,
         debug: bool,
         nc: bool,
         nc_ds: bool,
@@ -656,7 +678,7 @@ class Deploy:
 
         return True
 
-    def _start_nc(self, ssh: sshcontroller.SshController, nc_ds: bool):
+    def _start_nc(self, ssh: sshcontroller.ControllerProtocol, nc_ds: bool):
         from netconsole import run  # type: ignore
 
         nc_event = threading.Event()
@@ -701,3 +723,101 @@ class Deploy:
                     shutil.copy(fname, tmp_dir / prefix / filename)
 
         return upload_files
+
+
+class LocalDeploy(Deploy):
+    """
+    Uploads code to the current SystemCore without importing robot code locally or
+    running tests.
+    """
+
+    def __init__(self, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--debug",
+            action="store_true",
+            default=False,
+            help="If specified, runs the code in debug mode (which only currently enables verbose logging)",
+        )
+
+        parser.add_argument(
+            "--ignore-image-version",
+            action="store_true",
+            default=False,
+            help="Ignore SystemCore image version",
+        )
+
+        install_args = parser.add_mutually_exclusive_group()
+
+        install_args.add_argument(
+            "--no-install",
+            action="store_true",
+            default=False,
+            help="If specified, do not use pyproject.toml to install packages on the robot before deploy",
+        )
+
+        install_args.add_argument(
+            "--force-install",
+            action="store_true",
+            default=False,
+            help="Force installation of packages required by pyproject.toml",
+        )
+
+        parser.add_argument(
+            "--no-uninstall",
+            action="store_true",
+            default=False,
+            help="Do not uninstall packages from the SystemCore",
+        )
+
+        parser.add_argument(
+            "--large",
+            action="store_true",
+            default=False,
+            help="If specified, allow uploading large files (> 250k) to the SystemCore",
+        )
+
+        parser.add_argument(
+            "--cache-root",
+            type=pathlib.Path,
+            default=None,
+            help="Override RobotPy installer cache location; defaults to /opt/blocks/cache",
+        )
+
+        self._packages_in_cache: typing.Optional[pypackages.Packages] = None
+        self._robot_packages: typing.Optional[pypackages.Packages] = None
+
+    @handle_cli_error
+    def run(
+        self,
+        main_file: pathlib.Path,
+        project_path: pathlib.Path,
+        debug: bool,
+        ignore_image_version: bool,
+        no_install: bool,
+        no_uninstall: bool,
+        force_install: bool,
+        large: bool,
+        cache_root: typing.Optional[pathlib.Path],
+    ):
+        return Deploy.run(
+            self,
+            main_file=main_file,
+            project_path=project_path,
+            robot_class=None,
+            builtin=False,
+            skip_tests=True,
+            debug=debug,
+            nc=False,
+            nc_ds=False,
+            ignore_image_version=ignore_image_version,
+            no_install=no_install,
+            no_verify=_NO_VERIFY_WITHOUT_WARNING,
+            no_uninstall=no_uninstall,
+            force_install=force_install,
+            large=large,
+            robot=None,
+            team=None,
+            no_resolve=False,
+            local=True,
+            cache_root=cache_root,
+        )

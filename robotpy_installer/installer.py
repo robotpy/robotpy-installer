@@ -19,7 +19,7 @@ from .version import version as __version__
 from . import robot_utils
 from .cacheserver import CacheServer
 from .errors import Error, SshExecError
-from .sshcontroller import SshController, ssh_from_cfg
+from .sshcontroller import ControllerProtocol, SshController, ssh_from_cfg
 from .utils import _urlretrieve
 
 _WPILIB_YEAR = "2027"
@@ -81,12 +81,20 @@ def catch_ssh_error(msg: str):
 
 
 class RobotpyInstaller:
-    def __init__(self, *, log_startup: bool = True):
-        self.cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
+    def __init__(
+        self,
+        *,
+        log_startup: bool = True,
+        cache_root: typing.Optional[pathlib.Path] = None,
+    ):
+        if cache_root is None:
+            cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
+
+        self.cache_root = cache_root
         self.pip_cache = self.cache_root / "pip_cache"
         self.pkg_cache = self.cache_root / "pkg_cache"
 
-        self._ssh: typing.Optional[SshController] = None
+        self._ssh: typing.Optional[ControllerProtocol] = None
         self._cache_server: typing.Optional[CacheServer] = None
 
         self._image_version_ok = False
@@ -106,8 +114,8 @@ class RobotpyInstaller:
         ignore_image_version: bool = False,
         log_usage: bool = True,
         no_resolve: bool = False,
-        ssh: typing.Optional[SshController] = None,
-    ) -> typing.Generator[SshController, None, None]:
+        ssh: typing.Optional[ControllerProtocol] = None,
+    ) -> typing.Generator[ControllerProtocol, None, None]:
         if ssh is None:
             ssh = ssh_from_cfg(
                 project_path,
@@ -149,7 +157,7 @@ class RobotpyInstaller:
         return self._cache_server
 
     @property
-    def ssh(self) -> SshController:
+    def ssh(self) -> ControllerProtocol:
         """Only access inside connect_to_robot context"""
         if self._ssh is None:
             raise RuntimeError("internal error")
@@ -354,7 +362,10 @@ class RobotpyInstaller:
         #
 
         with catch_ssh_error("checking for python venv"):
-            if not self.ssh.sftp_remote_file_exists(_ROBOT_VENV_PYTHON):
+            venv_exists = self.ssh.sftp_remote_file_exists(_ROBOT_VENV_PYTHON)
+
+        if not venv_exists:
+            with catch_ssh_error("creating new venv"):
                 self.ssh.check_output(f"{_ROBOT_PYTHON} -m venv {_ROBOT_VENV}")
 
         # Use pip stub to override the wheel platform on SystemCore

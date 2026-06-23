@@ -1,7 +1,10 @@
+import getpass
 import io
 import logging
 import re
 import os
+import shutil
+import subprocess
 from os.path import exists, join, expanduser, split as splitpath
 from pathlib import Path, PurePath, PurePosixPath
 import shlex
@@ -32,7 +35,54 @@ class SshExecResult(typing.NamedTuple):
     stdout: typing.Optional[str]
 
 
+class ControllerProtocol(typing.Protocol):
+    username: str
+    password: str
+    hostname: str
+    is_local: bool
+
+    def __enter__(self) -> typing.Self: ...
+
+    def __exit__(self, *args): ...
+
+    def exec_cmd(
+        self,
+        cmd: str,
+        *,
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+        stdin: typing.Optional[bytes] = None,
+    ) -> SshExecResult: ...
+
+    def exec_bash(
+        self,
+        /,
+        *commands: str,
+        bash_opts: str = "e",
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+    ) -> SshExecResult: ...
+
+    def check_output(self, cmd: str, *, print_output: bool = False) -> str: ...
+
+    def sftp(self, local_path, remote_path, mkdir=True): ...
+
+    def sftp_fp(self, fp, remote_path): ...
+
+    def sftp_remote_file_exists(self, remote_path) -> bool: ...
+
+    def cache_listen(self) -> int: ...
+
+    def cache_accept(self): ...
+
+    def cache_close(self): ...
+
+
 class SshController:
+    is_local = False
+
     """
     Use this to execute commands on a roboRIO in a cross platform manner
 
@@ -221,6 +271,173 @@ class SshController:
             return False
         finally:
             sftp.close()
+
+    def cache_listen(self) -> int:
+        transport = self.client.get_transport()
+        assert transport is not None
+        return transport.request_port_forward("", 0)
+
+    def cache_accept(self):
+        transport = self.client.get_transport()
+        assert transport is not None
+        return transport.accept()
+
+    def cache_close(self):
+        pass
+
+
+_LOCAL_ENV_ALLOWLIST = frozenset(
+    {
+        "HOME",
+        "USER",
+        "LOGNAME",
+        "SHELL",
+        "LANG",
+        "LC_ALL",
+    }
+)
+_LOCAL_ENV_PATH = "/bin:/sbin:/usr/bin:/usr/sbin"
+
+
+class LocalController:
+    """
+    Executes installer operations on the current machine using the same API
+    surface as SshController.
+    """
+
+    is_local = True
+
+    def __init__(self):
+        self.username = getpass.getuser()
+        self.password = ""
+        self.hostname = "localhost"
+        self._cache_socket: typing.Optional[socket.socket] = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        return None
+
+    def exec_cmd(
+        self,
+        cmd: str,
+        *,
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+        stdin: typing.Optional[bytes] = None,
+    ) -> SshExecResult:
+        logger.debug(
+            "Executing local '%s' check=%s has_stdin=%s", cmd, check, bool(stdin)
+        )
+
+        env = {k: v for k, v in os.environ.items() if k in _LOCAL_ENV_ALLOWLIST}
+        env["PATH"] = _LOCAL_ENV_PATH
+
+        proc = subprocess.run(
+            cmd,
+            shell=True,
+            input=stdin,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+        )
+
+        stdout = proc.stdout.decode(errors="backslashreplace")
+        if print_output:
+            print(stdout, end="")
+
+        if check and proc.returncode != 0:
+            raise SshExecError(
+                "Command '%s' returned non-zero error status %s"
+                % (cmd, proc.returncode),
+                proc.returncode,
+            )
+
+        return SshExecResult(proc.returncode, stdout if get_output else None)
+
+    def exec_bash(
+        self,
+        /,
+        *commands: str,
+        bash_opts: str = "e",
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+    ) -> SshExecResult:
+        parts = ["/bin/bash"]
+        if bash_opts:
+            parts.append(f"-{bash_opts}")
+        parts.append("-c")
+        parts.append(";".join(c for c in commands))
+        cmd = shlex.join(parts)
+        return self.exec_cmd(
+            cmd, check=check, get_output=get_output, print_output=print_output
+        )
+
+    def check_output(self, cmd: str, *, print_output: bool = False) -> str:
+        result = self.exec_cmd(
+            cmd,
+            check=True,
+            get_output=True,
+            print_output=print_output,
+        )
+        assert result.stdout is not None
+        return result.stdout
+
+    def sftp(self, local_path, remote_path, mkdir=True):
+        local_path = Path(local_path)
+        remote_path = Path(remote_path)
+        destination = remote_path / local_path.name
+
+        if mkdir:
+            destination.mkdir(parents=True, exist_ok=True)
+
+        for root, dirs, files in os.walk(local_path):
+            root_path = Path(root)
+            relative_root = root_path.relative_to(local_path)
+            destination_root = destination / relative_root
+            destination_root.mkdir(parents=True, exist_ok=True)
+
+            for fname in files:
+                local_fname = root_path / fname
+                remote_fname = destination_root / fname
+                print(local_fname.relative_to(local_path), "->", remote_fname)
+                shutil.copy2(local_fname, remote_fname)
+
+    def sftp_fp(self, fp, remote_path):
+        remote_path = Path(remote_path)
+        remote_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(remote_path, "wb") as out:
+            shutil.copyfileobj(fp, out)
+
+    def sftp_remote_file_exists(self, remote_path) -> bool:
+        return Path(remote_path).exists()
+
+    def cache_listen(self) -> int:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind(("127.0.0.1", 0))
+        sock.listen()
+        self._cache_socket = sock
+        return sock.getsockname()[1]
+
+    def cache_accept(self):
+        assert self._cache_socket is not None
+        conn, _ = self._cache_socket.accept()
+        return conn
+
+    def cache_close(self):
+        sock = self._cache_socket
+        if sock is not None:
+            self._cache_socket = None
+            try:
+                with socket.create_connection(sock.getsockname(), timeout=0.1):
+                    pass
+            except OSError:
+                pass
+            sock.close()
 
 
 def ssh_from_cfg(

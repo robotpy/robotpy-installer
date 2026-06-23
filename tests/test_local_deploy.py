@@ -1,6 +1,9 @@
 import inspect
 import os
 import pathlib
+import sys
+
+import pytest
 
 from robotpy_installer.installer import RobotpyInstaller, _WPILIB_YEAR
 
@@ -31,7 +34,12 @@ import io
 from robotpy_installer.errors import SshExecError
 from robotpy_installer.sshcontroller import LocalController
 
+skip_on_windows = pytest.mark.skipif(
+    sys.platform == "win32", reason="LocalController executes POSIX SystemCore commands"
+)
 
+
+@skip_on_windows
 def test_local_controller_exec_cmd_captures_output():
     with LocalController() as controller:
         result = controller.exec_cmd("printf hello", check=True, get_output=True)
@@ -40,6 +48,7 @@ def test_local_controller_exec_cmd_captures_output():
     assert result.stdout == "hello"
 
 
+@skip_on_windows
 def test_local_controller_exec_cmd_raises_on_check_failure():
     with LocalController() as controller:
         try:
@@ -50,6 +59,7 @@ def test_local_controller_exec_cmd_raises_on_check_failure():
             raise AssertionError("expected SshExecError")
 
 
+@skip_on_windows
 def test_local_controller_exec_cmd_uses_minimal_environment(monkeypatch):
     monkeypatch.setenv("ROBOTPY_SHOULD_NOT_LEAK", "bad")
     monkeypatch.setenv("HOME", "/tmp/robotpy-home")
@@ -65,6 +75,7 @@ def test_local_controller_exec_cmd_uses_minimal_environment(monkeypatch):
     assert result.stdout == "/tmp/robotpy-home:/bin:/sbin:/usr/bin:/usr/sbin:"
 
 
+@skip_on_windows
 def test_local_controller_sftp_copies_directory(tmp_path):
     source_root = tmp_path / "source"
     source_child = source_root / "py_new"
@@ -78,6 +89,7 @@ def test_local_controller_sftp_copies_directory(tmp_path):
     assert (destination / "py_new" / "robot.py").read_text() == "print('robot')"
 
 
+@skip_on_windows
 def test_local_controller_sftp_fp_writes_file(tmp_path):
     destination = tmp_path / "nested" / "file.txt"
 

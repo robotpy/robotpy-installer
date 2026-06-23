@@ -107,3 +107,119 @@ def test_cache_server_serves_local_controller_files(tmp_path):
         assert fp.read() == b"cached"
 
     server.close()
+
+
+import argparse
+from unittest.mock import MagicMock, patch
+
+from robotpy_installer.cli_deploy import Deploy
+
+
+def _make_deploy_parser():
+    parser = argparse.ArgumentParser()
+    Deploy(parser)
+    return parser
+
+
+def test_deploy_parser_accepts_local_and_cache_root(tmp_path):
+    parser = _make_deploy_parser()
+
+    args = parser.parse_args(["--local", "--cache-root", str(tmp_path / "cache")])
+
+    assert args.local is True
+    assert args.cache_root == tmp_path / "cache"
+
+
+def test_deploy_local_uses_default_blocks_cache(tmp_path):
+    deploy = Deploy(argparse.ArgumentParser())
+    main_file = tmp_path / "robot.py"
+    main_file.write_text("print('robot')")
+
+    fake_installer = MagicMock()
+    fake_installer.connect_to_robot.return_value.__enter__.return_value = (
+        LocalController()
+    )
+    fake_installer.connect_to_robot.return_value.__exit__.return_value = None
+
+    with patch(
+        "robotpy_installer.cli_deploy.RobotpyInstaller", return_value=fake_installer
+    ) as installer_cls:
+        with (
+            patch.object(deploy, "_check_large_files", return_value=True),
+            patch.object(deploy, "_ensure_requirements"),
+            patch.object(deploy, "_do_deploy", return_value=True),
+        ):
+            result = deploy.run(
+                main_file=main_file,
+                project_path=tmp_path,
+                robot_class=object,
+                builtin=False,
+                skip_tests=True,
+                debug=False,
+                nc=False,
+                nc_ds=False,
+                ignore_image_version=False,
+                no_install=True,
+                no_verify=False,
+                no_uninstall=False,
+                force_install=False,
+                large=False,
+                robot=None,
+                team=None,
+                no_resolve=False,
+                local=True,
+                cache_root=None,
+            )
+
+    assert result == 0
+    installer_cls.assert_called_once_with(cache_root=pathlib.Path("/opt/blocks/cache"))
+    fake_installer.connect_to_robot.assert_called_once()
+    assert isinstance(
+        fake_installer.connect_to_robot.call_args.kwargs["ssh"], LocalController
+    )
+
+
+def test_deploy_local_uses_requested_cache_root(tmp_path):
+    deploy = Deploy(argparse.ArgumentParser())
+    main_file = tmp_path / "robot.py"
+    main_file.write_text("print('robot')")
+    cache_root = tmp_path / "cache"
+
+    fake_installer = MagicMock()
+    fake_installer.connect_to_robot.return_value.__enter__.return_value = (
+        LocalController()
+    )
+    fake_installer.connect_to_robot.return_value.__exit__.return_value = None
+
+    with patch(
+        "robotpy_installer.cli_deploy.RobotpyInstaller", return_value=fake_installer
+    ) as installer_cls:
+        with (
+            patch.object(deploy, "_check_large_files", return_value=True),
+            patch.object(deploy, "_ensure_requirements"),
+            patch.object(deploy, "_do_deploy", return_value=True),
+        ):
+            result = deploy.run(
+                main_file=main_file,
+                project_path=tmp_path,
+                robot_class=object,
+                builtin=False,
+                skip_tests=True,
+                debug=False,
+                nc=False,
+                nc_ds=False,
+                ignore_image_version=False,
+                no_install=True,
+                no_verify=False,
+                no_uninstall=False,
+                force_install=False,
+                large=False,
+                robot=None,
+                team=None,
+                no_resolve=False,
+                local=True,
+                cache_root=cache_root,
+            )
+
+    assert result == 0
+    installer_cls.assert_called_once_with(cache_root=cache_root)

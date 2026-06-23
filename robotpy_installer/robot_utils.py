@@ -2,7 +2,7 @@ import json
 import logging
 import typing
 
-from .sshcontroller import SshController
+from .sshcontroller import ControllerProtocol
 
 logger = logging.getLogger("robotpy.installer")
 
@@ -19,7 +19,7 @@ kill_robot_cmd = f"sudo systemctl stop robot"
 kill_script_content: typing.Optional[bytes] = None
 
 
-def uninstall_cpp_java(ssh: SshController):
+def uninstall_cpp_java(ssh: ControllerProtocol):
     """
     Frees up disk space by removing FRC C++/Java programs. This runs as lvuser or admin.
 
@@ -69,7 +69,7 @@ def uninstall_cpp_java(ssh: SshController):
 # )
 
 
-def get_robot_py_packages(ssh: SshController) -> typing.Dict[str, str]:
+def get_robot_py_packages(ssh: ControllerProtocol) -> typing.Dict[str, str]:
     if not ssh.sftp_remote_file_exists("/home/systemcore/venv/bin/python3"):
         return {}
 

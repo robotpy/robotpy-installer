@@ -35,6 +35,51 @@ class SshExecResult(typing.NamedTuple):
     stdout: typing.Optional[str]
 
 
+class ControllerProtocol(typing.Protocol):
+    username: str
+    password: str
+    hostname: str
+    is_local: bool
+
+    def __enter__(self) -> typing.Self: ...
+
+    def __exit__(self, *args): ...
+
+    def exec_cmd(
+        self,
+        cmd: str,
+        *,
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+        stdin: typing.Optional[bytes] = None,
+    ) -> SshExecResult: ...
+
+    def exec_bash(
+        self,
+        /,
+        *commands: str,
+        bash_opts: str = "e",
+        check: bool = False,
+        get_output: bool = False,
+        print_output: bool = False,
+    ) -> SshExecResult: ...
+
+    def check_output(self, cmd: str, *, print_output: bool = False) -> str: ...
+
+    def sftp(self, local_path, remote_path, mkdir=True): ...
+
+    def sftp_fp(self, fp, remote_path): ...
+
+    def sftp_remote_file_exists(self, remote_path) -> bool: ...
+
+    def cache_listen(self) -> int: ...
+
+    def cache_accept(self): ...
+
+    def cache_close(self): ...
+
+
 class SshController:
     is_local = False
 

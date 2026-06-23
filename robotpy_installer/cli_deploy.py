@@ -26,6 +26,8 @@ import logging
 
 logger = logging.getLogger("deploy")
 
+_LOCAL_DEFAULT_CACHE_ROOT = pathlib.Path("/opt/blocks/cache")
+
 
 @contextlib.contextmanager
 def wrap_ssh_error(msg: str):
@@ -136,6 +138,20 @@ class Deploy:
             "--team", default=None, type=int, help="Set team number to deploy robot for"
         )
 
+        robot_args.add_argument(
+            "--local",
+            action="store_true",
+            default=False,
+            help="Deploy to the current SystemCore without SSH",
+        )
+
+        parser.add_argument(
+            "--cache-root",
+            type=pathlib.Path,
+            default=None,
+            help="Override RobotPy installer cache location; defaults to /opt/blocks/cache with --local",
+        )
+
         parser.add_argument(
             "--no-resolve",
             action="store_true",
@@ -166,6 +182,8 @@ class Deploy:
         robot: typing.Optional[str],
         team: typing.Optional[int],
         no_resolve: bool,
+        local: bool,
+        cache_root: typing.Optional[pathlib.Path],
     ):
         if main_file.parent == pathlib.Path.home():
             print_err(
@@ -248,13 +266,21 @@ class Deploy:
                     )
                     raise Error(msg)
 
-        installer = RobotpyInstaller()
+        ssh: typing.Optional[sshcontroller.ControllerProtocol] = None
+        if local:
+            if cache_root is None:
+                cache_root = _LOCAL_DEFAULT_CACHE_ROOT
+            ssh = sshcontroller.LocalController()
+
+        installer = RobotpyInstaller(cache_root=cache_root)
 
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
             robot_or_team=robot or team,
             ignore_image_version=ignore_image_version,
+            no_resolve=no_resolve,
+            ssh=ssh,
         ) as ssh:
             self._ensure_requirements(
                 project,
@@ -350,7 +376,7 @@ class Deploy:
         return self._packages_in_cache
 
     def _get_robot_packages(
-        self, ssh: sshcontroller.SshController
+        self, ssh: sshcontroller.ControllerProtocol
     ) -> pypackages.Packages:
         if self._robot_packages is None:
             rio_packages = robot_utils.get_robot_py_packages(ssh)
@@ -366,7 +392,7 @@ class Deploy:
         self,
         project: typing.Optional[pyproject.RobotPyProjectToml],
         installer: RobotpyInstaller,
-        ssh: sshcontroller.SshController,
+        ssh: sshcontroller.ControllerProtocol,
         no_install: bool,
         force_install: bool,
         no_uninstall: bool,
@@ -563,7 +589,7 @@ class Deploy:
 
     def _do_deploy(
         self,
-        ssh: sshcontroller.SshController,
+        ssh: sshcontroller.ControllerProtocol,
         debug: bool,
         nc: bool,
         nc_ds: bool,
@@ -656,7 +682,7 @@ class Deploy:
 
         return True
 
-    def _start_nc(self, ssh: sshcontroller.SshController, nc_ds: bool):
+    def _start_nc(self, ssh: sshcontroller.ControllerProtocol, nc_ds: bool):
         from netconsole import run  # type: ignore
 
         nc_event = threading.Event()

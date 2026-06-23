@@ -4,6 +4,8 @@ import threading
 from http.server import SimpleHTTPRequestHandler
 from typing import Dict
 
+from robotpy_installer.sshcontroller import ControllerProtocol
+
 logger = logging.getLogger("cacheserver")
 
 
@@ -26,7 +28,7 @@ class HTTPHandler(SimpleHTTPRequestHandler):
 
 
 class CacheServer:
-    def __init__(self, ssh_controller, cache_root: pathlib.Path):
+    def __init__(self, ssh_controller: ControllerProtocol, cache_root: pathlib.Path):
         self.controller = ssh_controller
         self.cache_root = cache_root
         self.mapped_files: Dict[str, str] = {}

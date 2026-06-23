@@ -4,8 +4,6 @@ import threading
 from http.server import SimpleHTTPRequestHandler
 from typing import Dict
 
-from robotpy_installer.sshcontroller import SshController
-
 logger = logging.getLogger("cacheserver")
 
 
@@ -28,23 +26,24 @@ class HTTPHandler(SimpleHTTPRequestHandler):
 
 
 class CacheServer:
-    def __init__(self, ssh_controller: SshController, cache_root: pathlib.Path):
+    def __init__(self, ssh_controller, cache_root: pathlib.Path):
         self.controller = ssh_controller
         self.cache_root = cache_root
-
-        self.transport = self.controller.client.get_transport()
-        assert self.transport is not None
-        self.port = self.transport.request_port_forward("", 0)
-
         self.mapped_files: Dict[str, str] = {}
+        self._closed = threading.Event()
+        self.port = self.controller.cache_listen()
 
     def add_mapping(self, fname: str, local_file: str):
         self.mapped_files[fname] = local_file
 
     def start(self):
         t = threading.Thread(target=self._handle_requests)
-        t.setDaemon(True)
+        t.daemon = True
         t.start()
+
+    def close(self):
+        self._closed.set()
+        self.controller.cache_close()
 
     def process_request(self, request):
         client_address = request.getpeername()
@@ -56,18 +55,29 @@ class CacheServer:
                 server=None,
                 directory=self.cache_root,
             ).handle()
-        except OSError as e:
-            if str(e) == "File is closed":
+        except (OSError, ValueError) as e:
+            if str(e) in ("File is closed", "readline of closed file"):
                 return
+            raise
         finally:
             request.close()
 
     def _handle_requests(self):
-        request = self.transport.accept()
+        while not self._closed.is_set():
+            try:
+                request = self.controller.cache_accept()
+            except OSError:
+                if self._closed.is_set():
+                    return
+                raise
 
-        while request is not None:
+            if request is None:
+                return
+
+            if self._closed.is_set():
+                request.close()
+                return
+
             t = threading.Thread(target=self.process_request, args=[request])
-            t.setDaemon(True)
+            t.daemon = True
             t.start()
-
-            request = self.transport.accept()

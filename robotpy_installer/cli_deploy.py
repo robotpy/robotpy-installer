@@ -727,3 +727,110 @@ class Deploy:
                     shutil.copy(fname, tmp_dir / prefix / filename)
 
         return upload_files
+
+
+class LocalDeploy(Deploy):
+    """
+    Uploads code to the current SystemCore without importing robot code locally or
+    running tests.
+    """
+
+    def __init__(self, parser: argparse.ArgumentParser):
+        parser.add_argument(
+            "--debug",
+            action="store_true",
+            default=False,
+            help="If specified, runs the code in debug mode (which only currently enables verbose logging)",
+        )
+
+        parser.add_argument(
+            "--ignore-image-version",
+            action="store_true",
+            default=False,
+            help="Ignore SystemCore image version",
+        )
+
+        parser.add_argument(
+            "-n",
+            "--no-verify",
+            action="store_true",
+            default=False,
+            help="If specified, do not verify that the robotpy version in pyproject.toml is installed locally",
+        )
+
+        install_args = parser.add_mutually_exclusive_group()
+
+        install_args.add_argument(
+            "--no-install",
+            action="store_true",
+            default=False,
+            help="If specified, do not use pyproject.toml to install packages on the robot before deploy",
+        )
+
+        install_args.add_argument(
+            "--force-install",
+            action="store_true",
+            default=False,
+            help="Force installation of packages required by pyproject.toml",
+        )
+
+        parser.add_argument(
+            "--no-uninstall",
+            action="store_true",
+            default=False,
+            help="Do not uninstall packages from the SystemCore",
+        )
+
+        parser.add_argument(
+            "--large",
+            action="store_true",
+            default=False,
+            help="If specified, allow uploading large files (> 250k) to the SystemCore",
+        )
+
+        parser.add_argument(
+            "--cache-root",
+            type=pathlib.Path,
+            default=None,
+            help="Override RobotPy installer cache location; defaults to /opt/blocks/cache",
+        )
+
+        self._packages_in_cache: typing.Optional[pypackages.Packages] = None
+        self._robot_packages: typing.Optional[pypackages.Packages] = None
+
+    @handle_cli_error
+    def run(
+        self,
+        main_file: pathlib.Path,
+        project_path: pathlib.Path,
+        debug: bool,
+        ignore_image_version: bool,
+        no_install: bool,
+        no_verify: bool,
+        no_uninstall: bool,
+        force_install: bool,
+        large: bool,
+        cache_root: typing.Optional[pathlib.Path],
+    ):
+        return Deploy.run(
+            self,
+            main_file=main_file,
+            project_path=project_path,
+            robot_class=None,
+            builtin=False,
+            skip_tests=True,
+            debug=debug,
+            nc=False,
+            nc_ds=False,
+            ignore_image_version=ignore_image_version,
+            no_install=no_install,
+            no_verify=no_verify,
+            no_uninstall=no_uninstall,
+            force_install=force_install,
+            large=large,
+            robot=None,
+            team=None,
+            no_resolve=False,
+            local=True,
+            cache_root=cache_root,
+        )

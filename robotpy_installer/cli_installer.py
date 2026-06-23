@@ -3,9 +3,10 @@ import pathlib
 import shutil
 import typing
 
-from . import pypackages, robot_utils
+from . import pypackages, robot_utils, sshcontroller
 from .utils import handle_cli_error
 
+from .cli_deploy import LocalDeploy
 from .installer import (
     InstallerException,
     RobotpyInstaller,
@@ -14,11 +15,19 @@ from .installer import (
 from .utils import yesno
 
 
-def _add_ssh_options(parser: argparse.ArgumentParser):
+def _add_ssh_options(parser: argparse.ArgumentParser, *, local: bool = False):
     parser.add_argument(
         "--robot",
         help="Specify the robot hostname or team number",
     )
+
+    if local:
+        parser.add_argument(
+            "--local",
+            action="store_true",
+            default=False,
+            help="Run command against the current SystemCore without SSH",
+        )
 
     parser.add_argument(
         "--ignore-image-version",
@@ -26,6 +35,18 @@ def _add_ssh_options(parser: argparse.ArgumentParser):
         default=False,
         help="Ignore SystemCore image version",
     )
+
+
+def _local_controller(local: bool) -> typing.Optional[sshcontroller.ControllerProtocol]:
+    if local:
+        return sshcontroller.LocalController()
+    return None
+
+
+def _robot_or_team(robot: typing.Optional[str], local: bool) -> typing.Optional[str]:
+    if local:
+        return None
+    return robot
 
 
 def _add_cache_root_option(parser: argparse.ArgumentParser):
@@ -39,9 +60,10 @@ def _add_cache_root_option(parser: argparse.ArgumentParser):
 
 class _BasicInstallerCmd:
     log_usage = True
+    allow_local = True
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
+        _add_ssh_options(parser, local=self.allow_local)
 
     @handle_cli_error
     def run(
@@ -50,14 +72,16 @@ class _BasicInstallerCmd:
         main_file: pathlib.Path,
         ignore_image_version: bool,
         robot: typing.Optional[str],
+        local: bool = False,
     ):
         installer = RobotpyInstaller()
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
-            robot_or_team=robot,
+            robot_or_team=_robot_or_team(robot, local),
             ignore_image_version=ignore_image_version,
             log_usage=self.log_usage,
+            ssh=_local_controller(local),
         ):
             self.on_run(installer)
 
@@ -182,7 +206,7 @@ class InstallerUninstallRobotPy:
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
+        _add_ssh_options(parser, local=True)
         parser.add_argument("-y", "--yes", action="store_true", default=False)
 
     @handle_cli_error
@@ -193,6 +217,7 @@ class InstallerUninstallRobotPy:
         ignore_image_version: bool,
         robot: typing.Optional[str],
         yes: bool,
+        local: bool = False,
     ):
         if not yes and not yesno(
             "This will delete all python and user data! Continue?"
@@ -203,8 +228,9 @@ class InstallerUninstallRobotPy:
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
-            robot_or_team=robot,
+            robot_or_team=_robot_or_team(robot, local),
             ignore_image_version=ignore_image_version,
+            ssh=_local_controller(local),
         ):
             installer.uninstall_robotpy()
 
@@ -312,7 +338,7 @@ class InstallerInstall:
         )
 
         common_pip_options(parser)
-        _add_ssh_options(parser)
+        _add_ssh_options(parser, local=True)
 
     @handle_cli_error
     def run(
@@ -328,6 +354,7 @@ class InstallerInstall:
         requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
         cache_root: typing.Optional[pathlib.Path],
+        local: bool = False,
     ):
         if len(requirements) == 0 and len(packages) == 0:
             raise InstallerException(
@@ -338,8 +365,9 @@ class InstallerInstall:
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
-            robot_or_team=robot,
+            robot_or_team=_robot_or_team(robot, local),
             ignore_image_version=ignore_image_version,
+            ssh=_local_controller(local),
         ):
             installer.pip_install(
                 force_reinstall, ignore_installed, no_deps, pre, requirements, packages
@@ -381,6 +409,7 @@ class InstallerList(_BasicInstallerCmd):
     """
 
     log_usage = False
+    allow_local = False
 
     def on_run(self, installer: RobotpyInstaller):
         installer.pip_list()
@@ -392,7 +421,7 @@ class InstallerUninstall:
     """
 
     def __init__(self, parser: argparse.ArgumentParser) -> None:
-        _add_ssh_options(parser)
+        _add_ssh_options(parser, local=True)
 
         parser.add_argument(
             "packages",
@@ -408,13 +437,15 @@ class InstallerUninstall:
         ignore_image_version: bool,
         robot: typing.Optional[str],
         packages: typing.List[str],
+        local: bool = False,
     ):
         installer = RobotpyInstaller()
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
-            robot_or_team=robot,
+            robot_or_team=_robot_or_team(robot, local),
             ignore_image_version=ignore_image_version,
+            ssh=_local_controller(local),
         ):
             installer.pip_uninstall(packages)
 
@@ -436,6 +467,7 @@ class Installer:
         ("install", InstallerInstall),
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
+        ("local-deploy", LocalDeploy),
         ("sshcmd", InstallerSshCommand),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),

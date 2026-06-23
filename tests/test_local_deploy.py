@@ -112,7 +112,8 @@ def test_cache_server_serves_local_controller_files(tmp_path):
 import argparse
 from unittest.mock import MagicMock, patch
 
-from robotpy_installer.cli_deploy import Deploy
+from robotpy_installer.cli_deploy import Deploy, LocalDeploy
+from robotpy_installer.cli_installer import Installer
 
 
 def _make_deploy_parser():
@@ -128,6 +129,70 @@ def test_deploy_parser_accepts_local_and_cache_root(tmp_path):
 
     assert args.local is True
     assert args.cache_root == tmp_path / "cache"
+
+
+def test_local_deploy_parser_has_no_robot_or_test_options(tmp_path):
+    parser = argparse.ArgumentParser()
+    LocalDeploy(parser)
+
+    args = parser.parse_args(["--cache-root", str(tmp_path / "cache")])
+
+    assert args.cache_root == tmp_path / "cache"
+    assert not hasattr(args, "local")
+    assert not hasattr(args, "robot")
+    assert not hasattr(args, "team")
+    assert not hasattr(args, "skip_tests")
+    assert not hasattr(args, "builtin")
+    assert not hasattr(args, "nc")
+    assert not hasattr(args, "nc_ds")
+    assert not hasattr(args, "no_resolve")
+
+
+def test_local_deploy_installer_subcommand_is_registered():
+    assert ("local-deploy", LocalDeploy) in Installer.subcommands
+
+
+def test_local_deploy_runs_local_without_tests_or_robot_class(tmp_path):
+    deploy = LocalDeploy(argparse.ArgumentParser())
+    main_file = tmp_path / "robot.py"
+    main_file.write_text("print('robot')")
+
+    fake_installer = MagicMock()
+    fake_installer.connect_to_robot.return_value.__enter__.return_value = (
+        LocalController()
+    )
+    fake_installer.connect_to_robot.return_value.__exit__.return_value = None
+
+    with patch(
+        "robotpy_installer.cli_deploy.RobotpyInstaller", return_value=fake_installer
+    ) as installer_cls:
+        with (
+            patch.object(deploy, "_check_large_files", return_value=True),
+            patch.object(deploy, "_ensure_requirements"),
+            patch.object(deploy, "_do_deploy", return_value=True),
+            patch("robotpy_installer.cli_deploy.subprocess.run") as subprocess_run,
+        ):
+            result = deploy.run(
+                main_file=main_file,
+                project_path=tmp_path,
+                debug=False,
+                ignore_image_version=False,
+                no_install=True,
+                no_verify=False,
+                no_uninstall=False,
+                force_install=False,
+                large=False,
+                cache_root=None,
+            )
+
+    assert result == 0
+    subprocess_run.assert_not_called()
+    installer_cls.assert_called_once_with(cache_root=pathlib.Path("/opt/blocks/cache"))
+    fake_installer.connect_to_robot.assert_called_once()
+    assert fake_installer.connect_to_robot.call_args.kwargs["robot_or_team"] is None
+    assert isinstance(
+        fake_installer.connect_to_robot.call_args.kwargs["ssh"], LocalController
+    )
 
 
 def test_deploy_local_uses_default_blocks_cache(tmp_path):

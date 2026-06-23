@@ -28,6 +28,15 @@ def _add_ssh_options(parser: argparse.ArgumentParser):
     )
 
 
+def _add_cache_root_option(parser: argparse.ArgumentParser):
+    parser.add_argument(
+        "--cache-root",
+        type=pathlib.Path,
+        default=None,
+        help="Override RobotPy installer cache location",
+    )
+
+
 class _BasicInstallerCmd:
     log_usage = True
 
@@ -138,9 +147,14 @@ class InstallerDownloadPython:
             default=False,
             help="Use SSL certificates from certifi",
         )
+        _add_cache_root_option(parser)
 
-    def run(self, use_certifi: bool):
-        installer = RobotpyInstaller()
+    def run(
+        self,
+        use_certifi: bool,
+        cache_root: typing.Optional[pathlib.Path],
+    ):
+        installer = RobotpyInstaller(cache_root=cache_root)
         installer.download_python(use_certifi)
 
 
@@ -212,6 +226,8 @@ class InstallerUninstallJavaCpp(_BasicInstallerCmd):
 def common_pip_options(
     parser: argparse.ArgumentParser,
 ):
+    _add_cache_root_option(parser)
+
     parser.add_argument(
         "--no-deps",
         action="store_true",
@@ -266,8 +282,9 @@ class InstallerDownload:
         pre: bool,
         requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
+        cache_root: typing.Optional[pathlib.Path],
     ):
-        installer = RobotpyInstaller()
+        installer = RobotpyInstaller(cache_root=cache_root)
         installer.pip_download(no_deps, pre, requirements, packages, find_links)
 
 
@@ -310,13 +327,14 @@ class InstallerInstall:
         pre: bool,
         requirements: typing.Tuple[pathlib.Path],
         packages: typing.Tuple[str],
+        cache_root: typing.Optional[pathlib.Path],
     ):
         if len(requirements) == 0 and len(packages) == 0:
             raise InstallerException(
                 "You must give at least one requirement to install"
             )
 
-        installer = RobotpyInstaller()
+        installer = RobotpyInstaller(cache_root=cache_root)
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,

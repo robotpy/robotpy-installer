@@ -81,8 +81,16 @@ def catch_ssh_error(msg: str):
 
 
 class RobotpyInstaller:
-    def __init__(self, *, log_startup: bool = True):
-        self.cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
+    def __init__(
+        self,
+        *,
+        log_startup: bool = True,
+        cache_root: typing.Optional[pathlib.Path] = None,
+    ):
+        if cache_root is None:
+            cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
+
+        self.cache_root = cache_root
         self.pip_cache = self.cache_root / "pip_cache"
         self.pkg_cache = self.cache_root / "pkg_cache"
 

@@ -167,18 +167,18 @@ def test_local_deploy_installer_subcommand_is_registered():
     assert ("local-deploy", LocalDeploy) in Installer.subcommands
 
 
-def test_local_deploy_parser_has_blocks_option():
+def test_local_deploy_parser_has_yes_option():
     parser = argparse.ArgumentParser()
     LocalDeploy(parser)
 
     args = parser.parse_args([])
     assert args.blocks is False
 
-    args = parser.parse_args(["--blocks"])
-    assert args.blocks is True
+    args = parser.parse_args(["--yes"])
+    assert args.yes is True
 
 
-def test_local_deploy_blocks_does_not_prompt_on_requirements_mismatch(tmp_path):
+def test_local_deploy_yes_does_not_prompt_on_requirements_mismatch(tmp_path):
     deploy = LocalDeploy(argparse.ArgumentParser())
     main_file = tmp_path / "robot.py"
     main_file.write_text("print('robot')")
@@ -224,7 +224,7 @@ def test_local_deploy_blocks_does_not_prompt_on_requirements_mismatch(tmp_path):
             force_install=False,
             large=False,
             cache_root=None,
-            blocks=True,
+            yes=True,
         )
 
     assert result == 0

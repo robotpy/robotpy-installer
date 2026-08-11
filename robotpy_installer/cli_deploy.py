@@ -787,7 +787,7 @@ class LocalDeploy(Deploy):
         )
 
         parser.add_argument(
-            "--blocks",
+            "--yes",
             action="store_true",
             default=False,
             help="If specified, do not ask any interactive questions; assume 'yes' and deploy unattended",
@@ -808,7 +808,7 @@ class LocalDeploy(Deploy):
         force_install: bool,
         large: bool,
         cache_root: typing.Optional[pathlib.Path],
-        blocks: bool = False,
+        yes: bool = False,
     ):
         return Deploy.run(
             self,
@@ -831,5 +831,5 @@ class LocalDeploy(Deploy):
             no_resolve=False,
             local=True,
             cache_root=cache_root,
-            assume_yes=blocks,
+            assume_yes=yes,
         )

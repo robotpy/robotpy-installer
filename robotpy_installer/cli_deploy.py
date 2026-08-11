@@ -185,6 +185,7 @@ class Deploy:
         no_resolve: bool,
         local: bool,
         cache_root: typing.Optional[pathlib.Path],
+        assume_yes: bool = False,
     ):
         if main_file.parent == pathlib.Path.home():
             print_err(
@@ -228,7 +229,7 @@ class Deploy:
 
         robot_filename = main_file.name
 
-        if not large and not self._check_large_files(project_path):
+        if not large and not self._check_large_files(project_path, assume_yes):
             return 1
 
         project = None
@@ -291,6 +292,7 @@ class Deploy:
                 no_install,
                 force_install,
                 no_uninstall,
+                assume_yes,
             )
 
             if not self._do_deploy(ssh, debug, nc, nc_ds, robot_filename, project_path):
@@ -351,7 +353,7 @@ class Deploy:
 
         return deploy_data
 
-    def _check_large_files(self, robot_path: pathlib.Path):
+    def _check_large_files(self, robot_path: pathlib.Path, assume_yes: bool = False):
         large_sz = 250000
 
         large_files = []
@@ -365,7 +367,7 @@ class Deploy:
             for fname, sz in sorted(large_files):
                 print_err(f"- {fname} ({sz} bytes)")
 
-            if not yesno("Upload anyways?"):
+            if not assume_yes and not yesno("Upload anyways?"):
                 return False
 
         return True
@@ -398,6 +400,7 @@ class Deploy:
         no_install: bool,
         force_install: bool,
         no_uninstall: bool,
+        assume_yes: bool = False,
     ):
         python_exists = False
         python_invalid: typing.Union[bool, str] = False
@@ -438,7 +441,7 @@ class Deploy:
                     f"and install Python {rm}.{rmn}.\n"
                 )
 
-                if not yesno("Reinstall Python"):
+                if not assume_yes and not yesno("Reinstall Python"):
                     raise Error("User declined reinstallation")
 
         if python_exists:
@@ -492,7 +495,7 @@ class Deploy:
                 "If you do not wish to do this, specify --no-install as a deploy argument, or answer 'n'.\n"
             )
 
-            if not yesno(prompt):
+            if not assume_yes and not yesno(prompt):
                 requirements_installed = True
 
         if (
@@ -783,6 +786,13 @@ class LocalDeploy(Deploy):
             help="Override RobotPy installer cache location; defaults to /opt/blocks/cache",
         )
 
+        parser.add_argument(
+            "--blocks",
+            action="store_true",
+            default=False,
+            help="If specified, do not ask any interactive questions; assume 'yes' and deploy unattended",
+        )
+
         self._packages_in_cache: typing.Optional[pypackages.Packages] = None
         self._robot_packages: typing.Optional[pypackages.Packages] = None
 
@@ -798,6 +808,7 @@ class LocalDeploy(Deploy):
         force_install: bool,
         large: bool,
         cache_root: typing.Optional[pathlib.Path],
+        blocks: bool = False,
     ):
         return Deploy.run(
             self,
@@ -820,4 +831,5 @@ class LocalDeploy(Deploy):
             no_resolve=False,
             local=True,
             cache_root=cache_root,
+            assume_yes=blocks,
         )

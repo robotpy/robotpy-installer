@@ -172,7 +172,7 @@ def test_local_deploy_parser_has_yes_option():
     LocalDeploy(parser)
 
     args = parser.parse_args([])
-    assert args.blocks is False
+    assert args.yes is False
 
     args = parser.parse_args(["--yes"])
     assert args.yes is True

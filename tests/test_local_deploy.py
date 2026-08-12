@@ -167,6 +167,73 @@ def test_local_deploy_installer_subcommand_is_registered():
     assert ("local-deploy", LocalDeploy) in Installer.subcommands
 
 
+def test_local_deploy_parser_has_yes_option():
+    parser = argparse.ArgumentParser()
+    LocalDeploy(parser)
+
+    args = parser.parse_args([])
+    assert args.yes is False
+
+    args = parser.parse_args(["--yes"])
+    assert args.yes is True
+
+
+def test_local_deploy_yes_does_not_prompt_on_requirements_mismatch(tmp_path):
+    deploy = LocalDeploy(argparse.ArgumentParser())
+    main_file = tmp_path / "robot.py"
+    main_file.write_text("print('robot')")
+
+    fake_project = MagicMock()
+    fake_project.get_install_list.return_value = ["robotpy"]
+    fake_project.are_requirements_met.side_effect = [
+        (False, ["robotpy missing"]),
+        (True, []),
+        (True, []),
+    ]
+    fake_project.get_deploy_list.return_value = ["robotpy"]
+
+    fake_installer = MagicMock()
+    fake_installer.is_python_installed.return_value = True
+    fake_installer.get_python_version.return_value = required_pyversion
+    fake_installer.connect_to_robot.return_value.__enter__.return_value = (
+        LocalController()
+    )
+    fake_installer.connect_to_robot.return_value.__exit__.return_value = None
+
+    with (
+        patch("robotpy_installer.cli_deploy.pyproject.load", return_value=fake_project),
+        patch(
+            "robotpy_installer.cli_deploy.RobotpyInstaller", return_value=fake_installer
+        ),
+        patch.object(deploy, "_get_robot_packages", return_value={}),
+        patch.object(deploy, "_get_cached_packages", return_value={}),
+        patch.object(deploy, "_do_deploy", return_value=True),
+        patch(
+            "robotpy_installer.cli_deploy.robot_utils.uninstall_cpp_java",
+            return_value=True,
+        ),
+        patch("robotpy_installer.cli_deploy.yesno") as fake_yesno,
+    ):
+        result = deploy.run(
+            main_file=main_file,
+            project_path=tmp_path,
+            debug=False,
+            ignore_image_version=False,
+            no_install=False,
+            no_uninstall=False,
+            force_install=False,
+            large=False,
+            cache_root=None,
+            yes=True,
+        )
+
+    assert result == 0
+    fake_yesno.assert_not_called()
+    fake_installer.pip_install.assert_called_once_with(
+        False, False, False, False, [], ["robotpy"]
+    )
+
+
 def test_deploy_run_has_no_suppress_no_verify_warning_argument():
     assert "suppress_no_verify_warning" not in inspect.signature(Deploy.run).parameters
 

@@ -29,6 +29,7 @@ class Sync:
         [tool.robotpy]
 
         # Version of robotpy this project depends on
+        # Set to "ignored" to install only requires (components are ignored)
         robotpy_version = "{robotpy_version}"
 
         # Which optional RobotPy components should be installed?
@@ -104,39 +105,45 @@ class Sync:
         # parse pyproject.toml to determine the requirements
         project = pyproject.load(project_path, write_if_missing=True)
         logger.info(
-            "RobotPy version in `pyproject.toml` is '%s'", project.robotpy_version
+            "RobotPy version in `pyproject.toml` is '%s'",
+            project.robotpy_version or "ignored",
         )
 
-        # Check for upgrade
-        if not no_upgrade_project:
-            latest_robotpy_version = installer.get_pypi_version("robotpy", use_certifi)
-            logger.info("Latest version of RobotPy is '%s'", latest_robotpy_version)
-            if project.robotpy_version < latest_robotpy_version:
-                msg = f"Update robotpy_version in `pyproject.toml` to {latest_robotpy_version}?"
-                if yesno(msg):
-                    pyproject.set_robotpy_version(project_path, latest_robotpy_version)
-                    project.robotpy_version = latest_robotpy_version
+        if project.robotpy_version is not None:
+            # Check for upgrade
+            if not no_upgrade_project:
+                latest_robotpy_version = installer.get_pypi_version(
+                    "robotpy", use_certifi
+                )
+                logger.info("Latest version of RobotPy is '%s'", latest_robotpy_version)
+                if project.robotpy_version < latest_robotpy_version:
+                    msg = f"Update robotpy_version in `pyproject.toml` to {latest_robotpy_version}?"
+                    if yesno(msg):
+                        pyproject.set_robotpy_version(
+                            project_path, latest_robotpy_version
+                        )
+                        project.robotpy_version = latest_robotpy_version
 
-        # Get the local version and don't accidentally downgrade them
-        try:
-            local_robotpy_version = Version(pyproject.robotpy_installed_version())
-            if project.robotpy_version < local_robotpy_version:
-                logger.warning(
-                    "pyproject.toml robotpy version is older than currently installed version"
-                )
-                print()
-                msg = (
-                    f"Version currently installed: {local_robotpy_version}\n"
-                    f"Version in `pyproject.toml`: {project.robotpy_version}\n"
-                    "- Should we downgrade robotpy?"
-                )
-                if not yesno(msg):
-                    print(
-                        "Please update your pyproject.toml with the desired version of robotpy"
+            # Get the local version and don't accidentally downgrade them
+            try:
+                local_robotpy_version = Version(pyproject.robotpy_installed_version())
+                if project.robotpy_version < local_robotpy_version:
+                    logger.warning(
+                        "pyproject.toml robotpy version is older than currently installed version"
                     )
-                    return False
-        except pyproject.NoRobotpyError:
-            pass
+                    print()
+                    msg = (
+                        f"Version currently installed: {local_robotpy_version}\n"
+                        f"Version in `pyproject.toml`: {project.robotpy_version}\n"
+                        "- Should we downgrade robotpy?"
+                    )
+                    if not yesno(msg):
+                        print(
+                            "Please update your pyproject.toml with the desired version of robotpy"
+                        )
+                        return False
+            except pyproject.NoRobotpyError:
+                pass
 
         install_reqs = project.get_install_reqs()
         packages = list(map(str, install_reqs))
@@ -152,6 +159,10 @@ class Sync:
 
         logger.info("Downloading Python for SystemCore")
         installer.download_python(use_certifi)
+
+        if not packages:
+            logger.info("No Python packages to download or install")
+            return
 
         logger.info("Downloading SystemCore python packages")
         installer.pip_download(

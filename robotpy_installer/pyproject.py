@@ -60,15 +60,16 @@ class RobotPyProjectToml:
 
     """
 
-    #: Version of robotpy that is depended on
-    robotpy_version: Version
+    #: Version of robotpy that is depended on, or None when configured as "ignored"
+    robotpy_version: typing.Optional[Version]
 
     components: typing.List[str] = dataclasses.field(default_factory=list)
 
-    #: Requirement for the robotpy meta package -- all RobotPy projects must
-    #: depend on it
+    #: Requirement for the robotpy meta package, unless explicitly ignored
     @property
-    def robotpy_requires(self) -> Requirement:
+    def robotpy_requires(self) -> typing.Optional[Requirement]:
+        if self.robotpy_version is None:
+            return None
         if self.components:
             components = f"[{','.join(self.components)}]"
         else:
@@ -89,11 +90,9 @@ class RobotPyProjectToml:
         this project
         """
         reqs = self.get_install_reqs()
-        assert reqs and reqs[0].name == "robotpy"
-        robotpy_req = reqs[0]
-
-        # Extra requirements from the extra resolver
-        reqs.extend(extra_resolver(robotpy_req, env))
+        if self.robotpy_version is not None:
+            # Extra requirements from the extra resolver
+            reqs.extend(extra_resolver(reqs[0], env))
 
         return pypackages.are_requirements_met(reqs, packages, env)
 
@@ -110,7 +109,10 @@ class RobotPyProjectToml:
         )
 
     def get_install_reqs(self) -> typing.List[Requirement]:
-        return [self.robotpy_requires] + self.requires
+        robotpy_req = self.robotpy_requires
+        if robotpy_req is None:
+            return self.requires.copy()
+        return [robotpy_req] + self.requires
 
     def get_install_list(self) -> typing.List[str]:
         return list(map(str, self.get_install_reqs()))
@@ -523,7 +525,8 @@ def _load(
         ) from None
 
     try:
-        robotpy_version = Version(robotpy_data["robotpy_version"])
+        version = robotpy_data["robotpy_version"]
+        robotpy_version = None if version == "ignored" else Version(version)
     except KeyError:
         raise PyprojectError(
             f"{pyproject_path} missing required tools.robotpy.robotpy_version"
@@ -534,7 +537,7 @@ def _load(
         ) from None
 
     supported_year = int(installer._WPILIB_YEAR)
-    if robotpy_version.major != supported_year:
+    if robotpy_version is not None and robotpy_version.major != supported_year:
         msg = (
             f"Only RobotPy {supported_year}.x is supported by this version "
             f"of robotpy-installer ({pyproject_path} has {robotpy_version})"

@@ -2,6 +2,8 @@ import inspect
 import pathlib
 import typing
 
+import pytest
+
 from robotpy_installer import pyproject, pypackages
 from robotpy_installer.installer import _WPILIB_YEAR as YEAR
 
@@ -29,6 +31,52 @@ def test_ok():
         True,
         [],
     )
+
+
+@pytest.mark.parametrize("requires", [[], ["example==1.2"]])
+def test_ignored_version_uses_only_explicit_requirements(requires):
+    project = load_project(f"""
+        [tool.robotpy]
+        robotpy_version = "ignored"
+        components = ["cscore"]
+        requires = {requires!r}
+    """)
+
+    assert project.robotpy_version is None
+    assert project.get_install_list() == requires
+    assert project.get_deploy_list({}) == requires
+
+    def unexpected_resolver(req, env):
+        pytest.fail("ignored RobotPy must not resolve components")
+
+    installed = pypackages.make_packages({"example": "1.2"})
+    assert project.are_requirements_met(
+        installed, pypackages.robot_env(), unexpected_resolver
+    ) == (True, [])
+    # Checking requirements must not mutate the explicit requirements.
+    assert project.get_install_list() == requires
+
+
+def test_ignored_version_still_checks_explicit_requirements():
+    project = load_project("""
+        [tool.robotpy]
+        robotpy_version = "ignored"
+        requires = ["example==1.2"]
+    """)
+
+    assert project.are_requirements_met({}, {}, null_resolver) == (
+        False,
+        ["example==1.2 (not found)"],
+    )
+
+
+@pytest.mark.parametrize("version", ["invalid", "Ignored", "2024.1.0"])
+def test_invalid_or_unsupported_version_is_rejected(version):
+    with pytest.raises(pyproject.PyprojectError):
+        load_project(f"""
+            [tool.robotpy]
+            robotpy_version = "{version}"
+        """)
 
 
 def test_older_fail():

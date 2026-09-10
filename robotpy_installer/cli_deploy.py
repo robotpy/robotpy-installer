@@ -404,7 +404,8 @@ class Deploy:
     ):
         python_exists = False
         python_invalid: typing.Union[bool, str] = False
-        requirements_installed = False
+        no_requirements = project is not None and not project.get_install_list()
+        requirements_installed = no_requirements
 
         # does c++/java exist
         with wrap_ssh_error("removing c++/java user programs"):
@@ -445,7 +446,7 @@ class Deploy:
                     raise Error("User declined reinstallation")
 
         if python_exists:
-            if no_install:
+            if no_install or no_requirements:
                 requirements_installed = True
             elif not force_install:
                 pkgdata = self._get_robot_packages(ssh)
@@ -473,7 +474,7 @@ class Deploy:
         # Install requirements
         #
 
-        if force_install:
+        if force_install and not no_requirements:
             requirements_installed = False
         elif python_exists and not requirements_installed:
             # if this is a pre-existing robotpy install, warn the user
@@ -515,7 +516,8 @@ class Deploy:
 
             if python_invalid:
                 with wrap_ssh_error("uninstalling python"):
-                    self._clear_pip_packages(installer)
+                    if not no_requirements:
+                        self._clear_pip_packages(installer)
                     logger.info("Uninstalling %s from robot", python_invalid)
                     installer.uninstall_python()
                     python_exists = False

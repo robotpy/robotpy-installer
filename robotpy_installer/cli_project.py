@@ -31,7 +31,10 @@ class UpdateRobotpy:
             logger.error("Could not load pyproject.toml")
             return False
 
-        print("Project robotpy version is", project.robotpy_version)
+        print("Project robotpy version is", project.robotpy_version or "ignored")
+        if project.robotpy_version is None:
+            logger.error("Cannot update RobotPy while robotpy_version is 'ignored'")
+            return False
 
         installer = RobotpyInstaller(log_startup=False)
 

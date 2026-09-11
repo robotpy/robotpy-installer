@@ -25,5 +25,14 @@ and deploy's package clearing are skipped, even with ``--force-install``. With
 nonempty ``requires``, deploy retains its normal package-clearing behavior
 (including respecting ``--no-uninstall``).
 
+Projects can run local commands before deployment by adding one or more
+``[[tool.robotpy.deploy]]`` tables. Commands are required by default, so a nonzero
+exit status stops the deployment. Set ``required = false`` to report a failure and
+continue::
+
+    [[tool.robotpy.deploy]]
+    command = ["python", "-m", "mypy"]
+    required = false
+
 For more information about installing and using the RobotPy installer, see 
 `http://robotpy.readthedocs.io/en/stable/install/packages.html <http://robotpy.readthedocs.io/en/stable/install/packages.html>`_

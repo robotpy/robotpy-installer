@@ -123,8 +123,9 @@ def test_cache_server_serves_local_controller_files(tmp_path):
 
 
 import argparse
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
+from robotpy_installer import pyproject
 from robotpy_installer.cli_deploy import Deploy, LocalDeploy, required_pyversion
 from robotpy_installer.cli_installer import Installer
 from robotpy_installer.installer import _ROBOT_VENV
@@ -143,6 +144,39 @@ def test_deploy_parser_accepts_local_and_cache_root(tmp_path):
 
     assert args.local is True
     assert args.cache_root == tmp_path / "cache"
+
+
+def test_required_predeploy_action_stops_deploy(tmp_path):
+    project = MagicMock()
+    project.deploy = [
+        pyproject.DeployAction(["python", "-m", "mypy"], required=True),
+        pyproject.DeployAction(["python", "-m", "pytest"], required=True),
+    ]
+
+    with patch("robotpy_installer.cli_deploy.subprocess.run") as run:
+        run.return_value.returncode = 2
+        retval = Deploy._run_predeploy_actions(project, tmp_path)
+
+    assert retval == 2
+    run.assert_called_once_with(["python", "-m", "mypy"], cwd=tmp_path)
+
+
+def test_optional_predeploy_action_continues(tmp_path):
+    project = MagicMock()
+    project.deploy = [
+        pyproject.DeployAction(["python", "-m", "mypy"], required=False),
+        pyproject.DeployAction(["python", "-m", "pytest"], required=True),
+    ]
+
+    with patch("robotpy_installer.cli_deploy.subprocess.run") as run:
+        run.side_effect = [MagicMock(returncode=2), MagicMock(returncode=0)]
+        retval = Deploy._run_predeploy_actions(project, tmp_path)
+
+    assert retval == 0
+    assert run.call_args_list == [
+        call(["python", "-m", "mypy"], cwd=tmp_path),
+        call(["python", "-m", "pytest"], cwd=tmp_path),
+    ]
 
 
 def test_local_deploy_parser_has_no_robot_or_test_options(tmp_path):

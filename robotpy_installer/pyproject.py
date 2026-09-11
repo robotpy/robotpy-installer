@@ -28,6 +28,12 @@ class UnsupportedRobotpyVersion(PyprojectError):
     pass
 
 
+@dataclasses.dataclass(frozen=True)
+class DeployAction:
+    command: typing.List[str]
+    required: bool = True
+
+
 def toml_path(project_path: pathlib.Path):
     return project_path / "pyproject.toml"
 
@@ -64,6 +70,9 @@ class RobotPyProjectToml:
     robotpy_version: typing.Optional[Version]
 
     components: typing.List[str] = dataclasses.field(default_factory=list)
+
+    #: Commands to run locally before deploying the project
+    deploy: typing.List[DeployAction] = dataclasses.field(default_factory=list)
 
     #: Requirement for the robotpy meta package, unless explicitly ignored
     @property
@@ -571,10 +580,40 @@ def _load(
         for req in requires:
             _resolve_relative_file_url(req, base_path)
 
+    deploy = []
+    deploy_any = robotpy_data.get("deploy", [])
+    if not isinstance(deploy_any, list):
+        raise PyprojectError(f"{pyproject_path}: tools.robotpy.deploy must be an array")
+
+    for index, action in enumerate(deploy_any):
+        if not isinstance(action, dict):
+            raise PyprojectError(
+                f"{pyproject_path}: tools.robotpy.deploy[{index}] must be a table"
+            )
+
+        command = action.get("command")
+        if (
+            not isinstance(command, list)
+            or not command
+            or not all(isinstance(arg, str) for arg in command)
+        ):
+            raise PyprojectError(
+                f"{pyproject_path}: tools.robotpy.deploy[{index}].command must be a nonempty array of strings"
+            )
+
+        required = action.get("required", True)
+        if not isinstance(required, bool):
+            raise PyprojectError(
+                f"{pyproject_path}: tools.robotpy.deploy[{index}].required must be a boolean"
+            )
+
+        deploy.append(DeployAction(command=command, required=required))
+
     return RobotPyProjectToml(
         robotpy_version=robotpy_version,
         components=components,
         requires=requires,
+        deploy=deploy,
     )
 
 

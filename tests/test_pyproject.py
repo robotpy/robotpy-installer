@@ -33,6 +33,46 @@ def test_ok():
     )
 
 
+def test_deploy_actions():
+    project = load_project(f'''
+        [tool.robotpy]
+        robotpy_version = "{YEAR}.1.1.2"
+
+        [[tool.robotpy.deploy]]
+        command = ["python", "-m", "mypy"]
+
+        [[tool.robotpy.deploy]]
+        command = ["python", "-m", "pytest"]
+        required = false
+    ''')
+
+    assert project.deploy == [
+        pyproject.DeployAction(["python", "-m", "mypy"], required=True),
+        pyproject.DeployAction(["python", "-m", "pytest"], required=False),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("deploy", "message"),
+    [
+        ("deploy = {}", "must be an array"),
+        ("deploy = [{}]", "command must be a nonempty array of strings"),
+        ('deploy = [{ command = "pytest" }]', "command must be a nonempty array"),
+        (
+            'deploy = [{ command = ["pytest"], required = "yes" }]',
+            "required must be a boolean",
+        ),
+    ],
+)
+def test_invalid_deploy_actions(deploy, message):
+    with pytest.raises(pyproject.PyprojectError, match=message):
+        load_project(f'''
+            [tool.robotpy]
+            robotpy_version = "{YEAR}.1.1.2"
+            {deploy}
+        ''')
+
+
 @pytest.mark.parametrize("requires", [[], ["example==1.2"]])
 def test_ignored_version_uses_only_explicit_requirements(requires):
     project = load_project(f"""

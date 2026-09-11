@@ -5,6 +5,7 @@ import getpass
 import json
 import os
 import pathlib
+import shlex
 import shutil
 import socket
 import subprocess
@@ -193,6 +194,10 @@ class Deploy:
             )
             return False
 
+        project = None
+        if pyproject.toml_path(project_path).exists():
+            project = pyproject.load(project_path)
+
         # run the test suite before uploading
         if not skip_tests:
             test_args = [
@@ -225,6 +230,11 @@ class Deploy:
                 print()
                 print("WARNING: Uploading code against my better judgement...")
 
+        if project is not None:
+            retval = self._run_predeploy_actions(project, project_path)
+            if retval != 0:
+                return retval
+
         # upload all files in the robot.py source directory
 
         robot_filename = main_file.name
@@ -232,15 +242,14 @@ class Deploy:
         if not large and not self._check_large_files(project_path, assume_yes):
             return 1
 
-        project = None
-
         if not no_install:
-            try:
-                project = pyproject.load(project_path, default_if_missing=True)
-            except pyproject.NoRobotpyError as e:
-                raise pyproject.NoRobotpyError(
-                    f"{e}\n\nUse --no-install to ignore this error (not recommended)"
-                )
+            if project is None:
+                try:
+                    project = pyproject.load(project_path, default_if_missing=True)
+                except pyproject.NoRobotpyError as e:
+                    raise pyproject.NoRobotpyError(
+                        f"{e}\n\nUse --no-install to ignore this error (not recommended)"
+                    )
 
             logger.info("Robot project requirements:")
             for package in project.get_install_list():
@@ -299,6 +308,37 @@ class Deploy:
                 return 1
 
         print("\nSUCCESS: Deploy was successful!")
+        return 0
+
+    @staticmethod
+    def _run_predeploy_actions(
+        project: pyproject.RobotPyProjectToml, project_path: pathlib.Path
+    ) -> int:
+        for action in project.deploy:
+            command = shlex.join(action.command)
+            logger.info("Running pre-deploy command: %s", command)
+
+            try:
+                retval = subprocess.run(action.command, cwd=project_path).returncode
+            except OSError as error:
+                logger.error("Could not run pre-deploy command %s: %s", command, error)
+                retval = 1
+
+            if retval == 0:
+                continue
+
+            if action.required:
+                print_err(
+                    f"ERROR: Required pre-deploy command failed ({retval}): {command}"
+                )
+                return retval
+
+            logger.warning(
+                "Optional pre-deploy command failed (%s), continuing: %s",
+                retval,
+                command,
+            )
+
         return 0
 
     def _generate_build_data(self, project_path: pathlib.Path) -> dict:

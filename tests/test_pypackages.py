@@ -1,3 +1,9 @@
+from pathlib import Path
+
+from packaging.requirements import Requirement
+from packaging.utils import canonicalize_name
+from packaging.version import Version
+
 from robotpy_installer import _pipstub
 from robotpy_installer.installer import (
     _ROBOTPY_MANYLINUX_MAX,
@@ -7,7 +13,29 @@ from robotpy_installer.installer import (
     _ROBOTPY_PYTHON_VERSION_TUPLE_FULL,
     _PYTHON_PKG,
 )
-from robotpy_installer.pypackages import robot_env
+from robotpy_installer.pypackages import (
+    CacheVersion,
+    are_requirements_met,
+    get_cache_req_download_path,
+    robot_env,
+)
+
+
+def test_prerelease_satisfies_requirement_without_mutating_specifier():
+    requirement = Requirement("example>=1")
+    packages = {canonicalize_name("example"): [Version("1.1b1")]}
+
+    assert are_requirements_met([requirement], packages, {}) == (True, [])
+    assert requirement.specifier.prereleases is None
+
+
+def test_prerelease_wheel_matches_cache_requirement_without_mutation():
+    requirement = Requirement("example>=1")
+    wheel = Path("example-1.1b1-py3-none-any.whl")
+    packages = {canonicalize_name("example"): [CacheVersion("1.1b1", wheel)]}
+
+    assert get_cache_req_download_path(requirement, packages) == wheel
+    assert requirement.specifier.prereleases is None
 
 
 def test_robot_env_matches_robotpy_python_version_tuple():

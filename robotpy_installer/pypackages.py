@@ -46,21 +46,17 @@ def are_requirements_met(
             continue
 
         req_name = canonicalize_name(req.name)
-        req.specifier.prereleases = True
-
         empty_specifier = str(req.specifier) == ""
 
         for pkg, pkg_versions in packages.items():
             if pkg == req_name:
-                if not empty_specifier:
-                    for pkg_version in pkg_versions:
-                        if pkg_version in req.specifier:
-                            break
-                    else:
-                        found = ", ".join(map(str, sorted(pkg_versions)))
-                        unmet_requirements.append(
-                            f"{req.name}{req.specifier} (found {found})"
-                        )
+                if not empty_specifier and not any(
+                    req.specifier.filter(pkg_versions, prereleases=True)
+                ):
+                    found = ", ".join(map(str, sorted(pkg_versions)))
+                    unmet_requirements.append(
+                        f"{req.name}{req.specifier} (found {found})"
+                    )
                 break
         else:
             unmet_requirements.append(f"{req.name}{req.specifier} (not found)")
@@ -122,15 +118,10 @@ def get_cache_req_download_path(req: Requirement, packages: Packages) -> pathlib
     if creqs is None:
         raise KeyError(f"{req} not downloaded in cache (did you do a sync?)")
 
-    req.specifier.prereleases = True
-
     wheel_path = None
     any_path = None
 
-    for creq in sorted(creqs, reverse=True):
-        if req.specifier and creq not in req.specifier:
-            continue
-
+    for creq in req.specifier.filter(sorted(creqs, reverse=True), prereleases=True):
         if not isinstance(creq, CacheVersion):
             raise ValueError("internal error")
 

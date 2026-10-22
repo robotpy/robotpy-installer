@@ -14,6 +14,7 @@ from . import installer
 from . import pypackages
 from .pypackages import Packages, Env
 from .errors import Error
+from .python_runtime import DEFAULT_RUNTIME, PYTHON_314, PYTHON_315, PythonRuntime
 
 
 class PyprojectError(Error):
@@ -62,6 +63,18 @@ class RobotPyProjectToml:
 
     #: Version of robotpy that is depended on, or None when configured as "ignored"
     robotpy_version: typing.Optional[Version]
+
+    python_version: typing.Optional[str] = None
+
+    @property
+    def python_runtime(self) -> PythonRuntime:
+        if self.robotpy_version is not None:
+            return (
+                PYTHON_314
+                if self.robotpy_version < Version("2027.0.0a8")
+                else PYTHON_315
+            )
+        return PYTHON_314 if self.python_version == "3.14" else PYTHON_315
 
     components: typing.List[str] = dataclasses.field(default_factory=list)
 
@@ -467,6 +480,18 @@ def load(
     return _load(str(pyproject_path), data, base_path=project_path)
 
 
+def runtime_for_project(project_path: pathlib.Path) -> PythonRuntime:
+    """Select a runtime for standalone commands without creating a project."""
+    path = toml_path(project_path)
+    if not path.exists():
+        return DEFAULT_RUNTIME
+    with path.open("rb") as fp:
+        data = tomli.load(fp)
+    if "robotpy" not in data.get("tool", {}):
+        return DEFAULT_RUNTIME
+    return _load(str(path), data, base_path=project_path).python_runtime
+
+
 def loads(content: str, base_path: typing.Optional[pathlib.Path] = None):
     data = tomli.loads(content)
     return _load("<string>", data, base_path=base_path)
@@ -536,6 +561,15 @@ def _load(
             f"{pyproject_path}: tools.robotpy.robotpy_version is not a valid version"
         ) from None
 
+    python_version = robotpy_data.get("python_version")
+    if "python_version" in robotpy_data:
+        if robotpy_version is not None:
+            raise PyprojectError(
+                'python_version is only allowed when robotpy_version = "ignored"'
+            )
+        if python_version not in ("3.14", "3.15"):
+            raise PyprojectError('python_version must be "3.14" or "3.15"')
+
     supported_year = int(installer._WPILIB_YEAR)
     if robotpy_version is not None and robotpy_version.major != supported_year:
         msg = (
@@ -573,6 +607,7 @@ def _load(
 
     return RobotPyProjectToml(
         robotpy_version=robotpy_version,
+        python_version=python_version,
         components=components,
         requires=requires,
     )

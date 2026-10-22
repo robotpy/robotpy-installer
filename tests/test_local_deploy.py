@@ -183,7 +183,10 @@ def test_local_deploy_yes_does_not_prompt_on_requirements_mismatch(tmp_path):
     main_file = tmp_path / "robot.py"
     main_file.write_text("print('robot')")
 
+    from robotpy_installer.python_runtime import DEFAULT_RUNTIME
+
     fake_project = MagicMock()
+    fake_project.python_runtime = DEFAULT_RUNTIME
     fake_project.get_install_list.return_value = ["robotpy"]
     fake_project.are_requirements_met.side_effect = [
         (False, ["robotpy missing"]),
@@ -322,7 +325,10 @@ def test_local_deploy_runs_local_without_tests_or_robot_class(tmp_path):
 
 def test_ensure_requirements_does_not_clear_packages_when_venv_missing():
     deploy = Deploy(argparse.ArgumentParser())
+    from robotpy_installer.python_runtime import DEFAULT_RUNTIME
+
     fake_project = MagicMock()
+    fake_project.python_runtime = DEFAULT_RUNTIME
     fake_project.are_requirements_met.side_effect = [
         (False, ["robotpy missing"]),
         (True, []),

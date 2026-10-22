@@ -19,6 +19,8 @@ from packaging.utils import (
 )
 from packaging.version import Version
 
+from .python_runtime import DEFAULT_RUNTIME, PythonRuntime
+
 #: environment markers needed by Marker.evaluate
 Env = typing.Dict[str, str]
 
@@ -184,10 +186,25 @@ class CacheVersion(Version):
 
 def get_pip_cache_packages(
     cache_root: pathlib.Path,
+    python_runtime: typing.Optional[PythonRuntime] = None,
 ) -> Packages:
     """
     Iterates over the pip cache and returns dict of packages
     """
+
+    supported_tags = None
+    if python_runtime is not None:
+        from packaging.tags import cpython_tags, compatible_tags
+        from .installer import _ROBOTPY_MANYLINUX_MIN, _ROBOTPY_MANYLINUX_MAX
+
+        platforms = ["linux_systemcore", "linux_aarch64"] + [
+            f"manylinux_2_{i}_aarch64"
+            for i in range(_ROBOTPY_MANYLINUX_MIN, _ROBOTPY_MANYLINUX_MAX + 1)
+        ]
+        interpreter = f"cp{python_runtime.version_num}"
+        supported_tags = set(
+            cpython_tags(python_runtime.version_tuple, [interpreter], platforms)
+        ) | set(compatible_tags(python_runtime.version_tuple, interpreter, platforms))
 
     packages: Packages = {}
     pip_cache = cache_root / "pip_cache"
@@ -196,8 +213,11 @@ def get_pip_cache_packages(
         for f in pip_cache.iterdir():
             if f.suffix == ".whl":
                 try:
-                    name, version, _, _ = parse_wheel_filename(f.name)
-                    packages.setdefault(name, []).append(CacheVersion(str(version), f))
+                    name, version, _, tags = parse_wheel_filename(f.name)
+                    if supported_tags is None or supported_tags.intersection(tags):
+                        packages.setdefault(name, []).append(
+                            CacheVersion(str(version), f)
+                        )
                 except InvalidWheelFilename:
                     pass
             elif f.suffix in (".gz", ".zip"):
@@ -237,17 +257,12 @@ def metadata_from_wheel(whl_path: pathlib.Path) -> Metadata:
     return Metadata.from_email(m, validate=False)
 
 
-def robot_env() -> Env:
+def robot_env(python_runtime: PythonRuntime = DEFAULT_RUNTIME) -> Env:
     """
     For use with ``packaging.marker.Marker.evaluate``
     """
-    from .installer import (
-        _ROBOTPY_PYTHON_VERSION_TUPLE,
-        _ROBOTPY_PYTHON_VERSION_TUPLE_FULL,
-    )
-
-    python_version = ".".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
-    python_full_version = ".".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE_FULL))
+    python_version = ".".join(map(str, python_runtime.version_tuple))
+    python_full_version = ".".join(map(str, python_runtime.version))
 
     return {
         "implementation_name": "cpython",

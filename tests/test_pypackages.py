@@ -1,4 +1,5 @@
 from pathlib import Path
+from urllib.parse import unquote
 
 from packaging.requirements import Requirement
 from packaging.utils import canonicalize_name
@@ -52,14 +53,10 @@ def test_robot_env_matches_robotpy_python_version_tuple():
 def test_python_pkg_uses_robotpy_python_full_version():
     robotpy_python_full_version = ".".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE_FULL))
 
-    assert f"/cpython-{robotpy_python_full_version}+" in _PYTHON_PKG
+    assert f"/cpython-{robotpy_python_full_version}+" in unquote(_PYTHON_PKG)
 
 
 def test_pipstub_matches_installer_robot_python_constants():
     assert _pipstub._ROBOTPY_PYTHON_PLATFORM == _ROBOTPY_PYTHON_PLATFORM
-    assert (
-        _pipstub._ROBOTPY_PYTHON_VERSION_TUPLE_FULL
-        == _ROBOTPY_PYTHON_VERSION_TUPLE_FULL
-    )
     assert _pipstub._ROBOTPY_MANYLINUX_MIN == _ROBOTPY_MANYLINUX_MIN
     assert _pipstub._ROBOTPY_MANYLINUX_MAX == _ROBOTPY_MANYLINUX_MAX

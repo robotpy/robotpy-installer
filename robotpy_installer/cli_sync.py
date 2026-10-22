@@ -145,6 +145,7 @@ class Sync:
             except pyproject.NoRobotpyError:
                 pass
 
+        installer.python_runtime = project.python_runtime
         install_reqs = project.get_install_reqs()
         packages = list(map(str, install_reqs))
         direct_url_packages = [str(req) for req in install_reqs if req.url is not None]

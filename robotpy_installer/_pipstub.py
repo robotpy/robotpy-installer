@@ -13,7 +13,6 @@ import os
 import sys
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_systemcore"
-_ROBOTPY_PYTHON_VERSION_TUPLE_FULL = (3, 14, 3)
 _ROBOTPY_MANYLINUX_MIN = 17
 _ROBOTPY_MANYLINUX_MAX = 38
 
@@ -46,8 +45,9 @@ if __name__ == "__main__":
     platform.machine = lambda: "systemcore"
     platform.python_implementation = lambda: "CPython"
     platform.system = lambda: "Linux"
-    platform.python_version = lambda: ".".join(
-        map(str, _ROBOTPY_PYTHON_VERSION_TUPLE_FULL)
+    target_version = os.environ.get(
+        "ROBOTPY_PYTHON_VERSION", ".".join(map(str, sys.version_info[:3]))
     )
+    platform.python_version = lambda: target_version
 
     runpy.run_module("pip", run_name="__main__")

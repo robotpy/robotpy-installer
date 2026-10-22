@@ -1,5 +1,6 @@
 import argparse
 import pathlib
+import pytest
 from unittest.mock import MagicMock, patch
 
 from robotpy_installer.cli_installer import (
@@ -13,6 +14,25 @@ from robotpy_installer.cli_installer import (
     InstallerUninstallRobotPy,
 )
 from robotpy_installer.sshcontroller import LocalController
+
+
+@pytest.mark.parametrize(
+    "pin, expected",
+    [("2027.0.0a7", (3, 14, 3)), ("2027.0.0a8", (3, 15, 1)), ("ignored", (3, 15, 1))],
+)
+def test_download_python_uses_project_runtime(tmp_path, monkeypatch, pin, expected):
+    from robotpy_installer.installer import RobotpyInstaller
+
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(f'[tool.robotpy]\nrobotpy_version="{pin}"')
+    observed = []
+    monkeypatch.setattr(
+        RobotpyInstaller,
+        "download_python",
+        lambda self, cert: observed.append(self.python_runtime.version),
+    )
+    InstallerDownloadPython(argparse.ArgumentParser()).run(False, tmp_path / "cache")
+    assert observed == [expected]
 
 
 def test_download_python_parser_accepts_cache_root(tmp_path):

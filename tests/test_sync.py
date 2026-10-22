@@ -80,13 +80,13 @@ def test_sync_normal_version_still_upgrades_project(tmp_path, monkeypatch):
     main_file = tmp_path / "robot.py"
     main_file.write_text("")
     (tmp_path / "pyproject.toml").write_text(
-        f'[tool.robotpy]\nrobotpy_version = "{YEAR}.1.0"\n'
+        '[tool.robotpy]\nrobotpy_version = "2027.0.0a7"\n'
     )
     installer = MagicMock()
-    installer.get_pypi_version.return_value = Version(f"{YEAR}.2.0")
+    installer.get_pypi_version.return_value = Version("2027.0.0a8")
     monkeypatch.setattr(cli_sync, "RobotpyInstaller", lambda: installer)
     monkeypatch.setattr(
-        cli_sync.pyproject, "robotpy_installed_version", lambda: f"{YEAR}.1.0"
+        cli_sync.pyproject, "robotpy_installed_version", lambda: "2027.0.0a7"
     )
     monkeypatch.setattr(cli_sync, "yesno", lambda msg: True)
 
@@ -105,7 +105,8 @@ def test_sync_normal_version_still_upgrades_project(tmp_path, monkeypatch):
         no_deps=False,
         pre=False,
         requirements=[],
-        packages=[f"robotpy=={YEAR}.2.0"],
+        packages=["robotpy==2027.0.0a8"],
         find_links=None,
     )
-    assert cli_sync.pyproject.load(tmp_path).robotpy_version == Version(f"{YEAR}.2.0")
+    assert cli_sync.pyproject.load(tmp_path).robotpy_version == Version("2027.0.0a8")
+    assert installer.python_runtime.version == (3, 15, 1)

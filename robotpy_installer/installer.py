@@ -36,7 +36,7 @@ _ROBORIO2_IMAGES = [
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_systemcore"
-_ROBOTPY_PYTHON_VERSION_TUPLE_FULL = (3, 14, 3)
+_ROBOTPY_PYTHON_VERSION_TUPLE_FULL = (3, 14, 9)
 _ROBOTPY_PYTHON_VERSION_TUPLE = _ROBOTPY_PYTHON_VERSION_TUPLE_FULL[:2]
 _ROBOTPY_PYTHON_VERSION_NUM = "".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
@@ -46,7 +46,7 @@ _ROBOTPY_MANYLINUX_MIN = 17
 _ROBOTPY_MANYLINUX_MAX = 38
 
 # TODO: should we rehost this to ensure control?
-_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20260310/cpython-3.14.3+20260310-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9+20261021-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
 
 _ROBOT_VENV = "/home/systemcore/venv"
 _ROBOT_PYTHON_PREFIX = f"/home/systemcore/.python"

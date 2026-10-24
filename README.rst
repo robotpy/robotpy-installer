@@ -25,5 +25,25 @@ and deploy's package clearing are skipped, even with ``--force-install``. With
 nonempty ``requires``, deploy retains its normal package-clearing behavior
 (including respecting ``--no-uninstall``).
 
+Deployed Python version
+-----------------------
+
+For pinned 2027 RobotPy versions, the installer automatically selects Python:
+
+* Before ``2027.0.0a8``: Python 3.14.3
+* ``2027.0.0a8`` and later: Python 3.15.1
+
+When ``robotpy_version = "ignored"``, Python defaults to 3.15. To use 3.14 instead::
+
+    [tool.robotpy]
+    robotpy_version = "ignored"
+    python_version = "3.14"
+
+``python_version`` accepts only ``"3.14"`` or ``"3.15"`` and is rejected when
+``robotpy_version`` is pinned. No locally installed RobotPy package is required
+in ignored mode. This setting selects the robot's Python, not the host's Python.
+Standalone installer download/install commands also use project configuration;
+without a RobotPy project, they default to Python 3.15.
+
 For more information about installing and using the RobotPy installer, see 
 `http://robotpy.readthedocs.io/en/stable/install/packages.html <http://robotpy.readthedocs.io/en/stable/install/packages.html>`_

@@ -3,7 +3,7 @@ import pathlib
 import shutil
 import typing
 
-from . import pypackages, robot_utils, sshcontroller
+from . import pypackages, pyproject, robot_utils, sshcontroller
 from .utils import handle_cli_error
 
 from .cli_deploy import LocalDeploy
@@ -75,6 +75,7 @@ class _BasicInstallerCmd:
         local: bool = False,
     ):
         installer = RobotpyInstaller()
+        installer.python_runtime = pyproject.runtime_for_project(project_path)
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,
@@ -179,6 +180,7 @@ class InstallerDownloadPython:
         cache_root: typing.Optional[pathlib.Path],
     ):
         installer = RobotpyInstaller(cache_root=cache_root)
+        installer.python_runtime = pyproject.runtime_for_project(pathlib.Path.cwd())
         installer.download_python(use_certifi)
 
 
@@ -311,6 +313,7 @@ class InstallerDownload:
         cache_root: typing.Optional[pathlib.Path],
     ):
         installer = RobotpyInstaller(cache_root=cache_root)
+        installer.python_runtime = pyproject.runtime_for_project(pathlib.Path.cwd())
         installer.pip_download(no_deps, pre, requirements, packages, find_links)
 
 
@@ -362,6 +365,7 @@ class InstallerInstall:
             )
 
         installer = RobotpyInstaller(cache_root=cache_root)
+        installer.python_runtime = pyproject.runtime_for_project(project_path)
         with installer.connect_to_robot(
             project_path=project_path,
             main_file=main_file,

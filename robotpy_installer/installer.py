@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import pathlib
+import os
 import re
 import shlex
 import subprocess
@@ -21,6 +22,7 @@ from .cacheserver import CacheServer
 from .errors import Error, SshExecError
 from .sshcontroller import ControllerProtocol, SshController, ssh_from_cfg
 from .utils import _urlretrieve
+from .python_runtime import DEFAULT_RUNTIME, PythonRuntime
 
 _WPILIB_YEAR = "2027"
 _IS_BETA = True
@@ -36,7 +38,7 @@ _ROBORIO2_IMAGES = [
 ]
 
 _ROBOTPY_PYTHON_PLATFORM = "linux_systemcore"
-_ROBOTPY_PYTHON_VERSION_TUPLE_FULL = (3, 14, 9)
+_ROBOTPY_PYTHON_VERSION_TUPLE_FULL = DEFAULT_RUNTIME.version
 _ROBOTPY_PYTHON_VERSION_TUPLE = _ROBOTPY_PYTHON_VERSION_TUPLE_FULL[:2]
 _ROBOTPY_PYTHON_VERSION_NUM = "".join(map(str, _ROBOTPY_PYTHON_VERSION_TUPLE))
 _ROBOTPY_PYTHON_VERSION = f"python{_ROBOTPY_PYTHON_VERSION_NUM}"
@@ -46,7 +48,7 @@ _ROBOTPY_MANYLINUX_MIN = 17
 _ROBOTPY_MANYLINUX_MAX = 38
 
 # TODO: should we rehost this to ensure control?
-_PYTHON_PKG = "https://github.com/astral-sh/python-build-standalone/releases/download/20261021/cpython-3.14.9+20261021-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+_PYTHON_PKG = DEFAULT_RUNTIME.url
 
 _ROBOT_VENV = "/home/systemcore/venv"
 _ROBOT_PYTHON_PREFIX = f"/home/systemcore/.python"
@@ -86,7 +88,9 @@ class RobotpyInstaller:
         *,
         log_startup: bool = True,
         cache_root: typing.Optional[pathlib.Path] = None,
+        python_runtime: PythonRuntime = DEFAULT_RUNTIME,
     ):
+        self.python_runtime = python_runtime
         if cache_root is None:
             cache_root = pathlib.Path.home() / "wpilib" / _WPILIB_YEAR / "robotpy"
 
@@ -410,7 +414,7 @@ class RobotpyInstaller:
 
     @property
     def _python_pkg_path(self) -> pathlib.Path:
-        parts = urlparse(_PYTHON_PKG)
+        parts = urlparse(self.python_runtime.url)
         return self.pkg_cache / pathlib.PurePosixPath(parts.path).name
 
     def is_python_downloaded(self) -> bool:
@@ -420,7 +424,7 @@ class RobotpyInstaller:
         self.pkg_cache.mkdir(parents=True, exist_ok=True)
 
         dst = self._python_pkg_path
-        _urlretrieve(_PYTHON_PKG, dst, True, _make_ssl_context(use_certifi))
+        _urlretrieve(self.python_runtime.url, dst, True, _make_ssl_context(use_certifi))
 
     def install_python(self):
         """
@@ -554,11 +558,11 @@ class RobotpyInstaller:
             + platform_args
             + [
                 "--python-version",
-                _ROBOTPY_PYTHON_VERSION_NUM,
+                self.python_runtime.version_num,
                 "--implementation",
                 "cp",
                 "--abi",
-                f"cp{_ROBOTPY_PYTHON_VERSION_NUM}",
+                f"cp{self.python_runtime.version_num}",
                 "-d",
                 str(self.pip_cache),
             ]
@@ -582,7 +586,9 @@ class RobotpyInstaller:
 
         logger.debug("Using pip to download: %s", pip_args)
 
-        retval = subprocess.call(pip_args)
+        env = os.environ.copy()
+        env["ROBOTPY_PYTHON_VERSION"] = ".".join(map(str, self.python_runtime.version))
+        retval = subprocess.call(pip_args, env=env)
         if retval != 0:
             raise InstallerException("pip download failed")
 

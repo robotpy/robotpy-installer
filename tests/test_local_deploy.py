@@ -136,6 +136,22 @@ def _make_deploy_parser():
     return parser
 
 
+@pytest.mark.parametrize("argv", [[], ["--local"]])
+def test_deploy_parser_supplies_run_arguments(argv):
+    deploy = Deploy(argparse.ArgumentParser())
+    args = _make_deploy_parser().parse_args(argv)
+    # RobotPy injects these values and reads every other run parameter from
+    # argparse, even parameters with Python defaults.
+    injected = {"main_file", "project_path", "robot_class"}
+    kwargs = {
+        name: getattr(args, name)
+        for name in inspect.signature(deploy.run).parameters
+        if name not in injected
+    }
+
+    assert kwargs["assume_yes"] is False
+
+
 def test_deploy_parser_accepts_local_and_cache_root(tmp_path):
     parser = _make_deploy_parser()
 

@@ -47,6 +47,10 @@ class Deploy:
     """
 
     def __init__(self, parser: argparse.ArgumentParser):
+        # RobotPy reads every run parameter from argparse, including defaults.
+        # Only LocalDeploy exposes an option to enable unattended deployment.
+        parser.set_defaults(assume_yes=False)
+
         parser.add_argument(
             "--builtin",
             default=False,

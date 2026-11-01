@@ -276,6 +276,11 @@ class Deploy:
             ssh = sshcontroller.LocalController()
 
         installer = RobotpyInstaller(cache_root=cache_root)
+        installer.python_runtime = (
+            project.python_runtime
+            if project is not None
+            else pyproject.runtime_for_project(project_path)
+        )
 
         with installer.connect_to_robot(
             project_path=project_path,
@@ -373,10 +378,15 @@ class Deploy:
         return True
 
     def _get_cached_packages(self, installer: RobotpyInstaller) -> pypackages.Packages:
-        if self._packages_in_cache is None:
+        cache_key = (installer.cache_root, installer.python_runtime)
+        if (
+            self._packages_in_cache is None
+            or getattr(self, "_cache_key", None) != cache_key
+        ):
             self._packages_in_cache = pypackages.get_pip_cache_packages(
-                installer.cache_root
+                installer.cache_root, installer.python_runtime
             )
+            self._cache_key = cache_key
         return self._packages_in_cache
 
     def _get_robot_packages(
@@ -402,6 +412,11 @@ class Deploy:
         no_uninstall: bool,
         assume_yes: bool = False,
     ):
+        runtime = (
+            project.python_runtime if project is not None else installer.python_runtime
+        )
+        installer.python_runtime = runtime
+        required_pyversion = runtime.version_tuple
         python_exists = False
         python_invalid: typing.Union[bool, str] = False
         no_requirements = project is not None and not project.get_install_list()
@@ -430,7 +445,7 @@ class Deploy:
 
                 if no_install:
                     raise Error(
-                        f"Unsupported version of python ({m}.{mn}) was found on the robot\n"
+                        f"Python {m}.{mn} was found on the robot, but this project requires Python {rm}.{rmn}\n"
                         "- could not update it because no-install was specified\n"
                     )
 
@@ -438,7 +453,7 @@ class Deploy:
                 print(
                     "\n"
                     f"Deployer has detected that the version of Python installed on the robot ({m}.{mn})\n"
-                    "is not supported by this installer. The installer will now uninstall that\n"
+                    "does not match the version required by this project. The installer will now uninstall it\n"
                     f"and install Python {rm}.{rmn}.\n"
                 )
 
@@ -458,7 +473,7 @@ class Deploy:
                 assert project is not None
                 requirements_installed, desc = project.are_requirements_met(
                     pkgdata,
-                    pypackages.robot_env(),
+                    pypackages.robot_env(runtime),
                     pypackages.make_cache_extra_resolver(
                         self._get_cached_packages(installer)
                     ),
@@ -539,7 +554,7 @@ class Deploy:
                 cached = self._get_cached_packages(installer)
                 ok, missing = project.are_requirements_met(
                     cached,
-                    pypackages.robot_env(),
+                    pypackages.robot_env(runtime),
                     pypackages.make_cache_extra_resolver(cached),
                 )
                 if not ok:
@@ -559,7 +574,7 @@ class Deploy:
                     cached = self._get_cached_packages(installer)
                     ok, missing = project.are_requirements_met(
                         cached,
-                        pypackages.robot_env(),
+                        pypackages.robot_env(runtime),
                         pypackages.make_cache_extra_resolver(cached),
                     )
 

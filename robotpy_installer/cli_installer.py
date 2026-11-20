@@ -7,6 +7,7 @@ from . import pypackages, pyproject, robot_utils, sshcontroller
 from .utils import handle_cli_error
 
 from .cli_deploy import LocalDeploy
+from .cli_offline import InstallerOffline
 from .installer import (
     InstallerException,
     RobotpyInstaller,
@@ -472,6 +473,7 @@ class Installer:
         ("install-python", InstallerInstallPython),
         ("list", InstallerList),
         ("local-deploy", LocalDeploy),
+        ("offline", InstallerOffline),
         ("sshcmd", InstallerSshCommand),
         ("uninstall", InstallerUninstall),
         ("uninstall-python", InstallerUninstallPython),

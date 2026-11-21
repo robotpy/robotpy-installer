@@ -66,6 +66,9 @@ class RobotPyProjectToml:
 
     python_version: typing.Optional[str] = None
 
+    #: Additional gitignore-style deployment exclusions
+    deploy_exclude: typing.List[str] = dataclasses.field(default_factory=list)
+
     @property
     def python_runtime(self) -> PythonRuntime:
         if self.robotpy_version is not None:
@@ -480,6 +483,25 @@ def load(
     return _load(str(pyproject_path), data, base_path=project_path)
 
 
+def _parse_deploy_exclude(
+    robotpy_data: typing.Dict[str, typing.Any],
+) -> typing.List[str]:
+    patterns = robotpy_data.get("deploy_exclude", [])
+    if not isinstance(patterns, list) or not all(isinstance(p, str) for p in patterns):
+        raise PyprojectError("tool.robotpy.deploy_exclude must be a list of strings")
+    return patterns
+
+
+def deploy_exclude_for_project(project_path: pathlib.Path) -> typing.List[str]:
+    """Read exclusions without requiring package settings (for --no-install)."""
+    path = toml_path(project_path)
+    if not path.exists():
+        return []
+    with path.open("rb") as fp:
+        data = tomli.load(fp)
+    return _parse_deploy_exclude(data.get("tool", {}).get("robotpy", {}))
+
+
 def runtime_for_project(project_path: pathlib.Path) -> PythonRuntime:
     """Select a runtime for standalone commands without creating a project."""
     path = toml_path(project_path)
@@ -608,6 +630,7 @@ def _load(
     return RobotPyProjectToml(
         robotpy_version=robotpy_version,
         python_version=python_version,
+        deploy_exclude=_parse_deploy_exclude(robotpy_data),
         components=components,
         requires=requires,
     )

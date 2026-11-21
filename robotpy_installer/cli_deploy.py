@@ -13,7 +13,9 @@ import tempfile
 import threading
 import typing
 
-from os.path import join, splitext
+from os.path import join
+
+from pathspec import GitIgnoreSpec
 
 from . import pypackages, pyproject, robot_utils, sshcontroller
 from .installer import PipInstallError, PythonMissingError, RobotpyInstaller
@@ -717,28 +719,44 @@ class Deploy:
         self, tmp_dir: pathlib.Path, project_path: pathlib.Path, dry_run: bool = False
     ):
         upload_files = []
-        ignore_exts = frozenset({".pyc", ".whl", ".ipk", ".zip", ".gz", ".wpilog"})
+        # User patterns follow the defaults so negations can override them.
+        patterns = [
+            ".*",
+            "__pycache__/",
+            "ctre_sim/",
+            "logs/",
+            "venv/",
+            "*.pyc",
+            "*.whl",
+            "*.ipk",
+            "*.zip",
+            "*.gz",
+            "*.wpilog",
+        ]
+        for pattern in pyproject.deploy_exclude_for_project(project_path):
+            if not pattern.endswith("\\ "):
+                pattern = pattern.rstrip()
+            # A trailing /** excludes contents, not the directory itself.
+            # Require a child segment to avoid pruning the parent directory.
+            if pattern.endswith("/**"):
+                pattern += "/*"
+            elif pattern.endswith("/**/"):
+                pattern += "*/"
+            patterns.append(pattern)
+        exclusions = GitIgnoreSpec.from_lines(patterns)
 
-        prefix_len = len(str(project_path)) + 1
         for root, dirs, files in os.walk(project_path):
-            prefix = root[prefix_len:]
+            prefix = pathlib.Path(root).relative_to(project_path)
             if not dry_run:
                 (tmp_dir / prefix).mkdir()
 
-            # skip .svn, .git, .hg, etc directories
+            # Prune excluded directories, as Git does when walking a tree.
             for d in dirs[:]:
-                if d.startswith(".") or d in (
-                    "__pycache__",
-                    "ctre_sim",
-                    "logs",
-                    "venv",
-                ):
+                if exclusions.match_file((prefix / d).as_posix() + "/"):
                     dirs.remove(d)
 
-            # skip .pyc files
             for filename in files:
-                r, ext = splitext(filename)
-                if ext in ignore_exts or r.startswith("."):
+                if exclusions.match_file((prefix / filename).as_posix()):
                     continue
 
                 fname = join(root, filename)

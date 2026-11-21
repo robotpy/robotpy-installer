@@ -25,6 +25,7 @@ classifiers = [
 dependencies = [
     "packaging>=23.2",
     "paramiko",
+    "pathspec>=0.12.1",
     "pip>=26.2.2",
     "pynetconsole~=2.0.2",
     "robotpy-cli~=2027.0.1b1",

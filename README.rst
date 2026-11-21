@@ -25,6 +25,27 @@ and deploy's package clearing are skipped, even with ``--force-install``. With
 nonempty ``requires``, deploy retains its normal package-clearing behavior
 (including respecting ``--no-uninstall``).
 
+Excluding files from deployment
+-------------------------------
+
+Add ``deploy_exclude`` to your existing ``[tool.robotpy]`` section in
+``pyproject.toml``::
+
+    deploy_exclude = ["tests/", "data/**", "!data/required.json"]
+
+Patterns use gitignore syntax relative to the project root, with forward slashes
+on all platforms. Later patterns override earlier ones; ``!`` re-includes files,
+provided their parent directories are not excluded. ``.gitignore`` files are not read.
+
+Defaults exclude names starting with a period, ``__pycache__/``, ``ctre_sim/``,
+``logs/``, ``venv/``, and ``*.pyc``, ``*.whl``, ``*.ipk``, ``*.zip``, ``*.gz``, ``*.wpilog``. Your patterns
+can override these defaults, for example::
+
+    deploy_exclude = ["!logs/", "!*.wpilog"]
+
+Exclusions apply to normal/local deploy and large-file warnings, including with
+``--no-install``. Generated ``deploy.json`` metadata is always written.
+
 Deployed Python version
 -----------------------
 

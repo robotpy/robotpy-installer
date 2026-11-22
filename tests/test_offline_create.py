@@ -16,6 +16,7 @@ from robotpy_installer.installer import RobotpyInstaller
 from test_offline_format import wheel
 
 _REAL_STAGE = offline._stage_local_wheels
+_REAL_DOWNLOAD = RobotpyInstaller.pip_download
 
 
 @pytest.fixture
@@ -77,6 +78,7 @@ def test_create_uses_project_requirements_and_runtime(creation):
         requirements=[],
         packages=["demo==1.0"],
         find_links=project.parent,
+        force_deps=True,
     )
     local = next(c for c in calls if c[0] == "local")
     assert local[2] == dict(
@@ -382,6 +384,52 @@ def test_local_resolution_uses_clean_venv(tmp_path, monkeypatch):
     assert "--no-deps" in calls[2][0]
 
 
+def dependent_wheel(name, dependency):
+    with zipfile.ZipFile(io.BytesIO(wheel(name, "1.0"))) as original:
+        result = io.BytesIO()
+        with zipfile.ZipFile(result, "w") as archive:
+            for member in original.namelist():
+                data = original.read(member)
+                if member.endswith("/METADATA"):
+                    data += f"Requires-Dist: {dependency}==1.0\n".encode()
+                archive.writestr(member, data)
+        return result.getvalue()
+
+
+@pytest.mark.parametrize("option", ["no-deps", "no-dependencies"])
+@pytest.mark.parametrize("source", ["env", "global", "download"])
+def test_robot_resolution_includes_transitive_dependencies(
+    creation, tmp_path, monkeypatch, source, option
+):
+    project, output, _ = creation
+    monkeypatch.setattr(RobotpyInstaller, "pip_download", _REAL_DOWNLOAD)
+    links = tmp_path / "links"
+    links.mkdir()
+    (links / "demo-1.0-py3-none-any.whl").write_bytes(dependent_wheel("demo", "child"))
+    (links / "child-1.0-py3-none-any.whl").write_bytes(dependent_wheel("child", "leaf"))
+    (links / "leaf-1.0-py3-none-any.whl").write_bytes(wheel("leaf", "1.0"))
+
+    monkeypatch.setenv("PIP_NO_INDEX", "1")
+    monkeypatch.setenv("PIP_FIND_LINKS", str(links))
+    monkeypatch.delenv("PIP_NO_DEPS", raising=False)
+    monkeypatch.delenv("PIP_NO_DEPENDENCIES", raising=False)
+    if source == "env":
+        monkeypatch.setenv("PIP_" + option.upper().replace("-", "_"), "1")
+        monkeypatch.setenv("PIP_CONFIG_FILE", os.devnull)
+    else:
+        config = tmp_path / "pip.conf"
+        config.write_text(f"[{source}]\n{option} = true\n")
+        monkeypatch.setenv("PIP_CONFIG_FILE", str(config))
+
+    offline.create_bundle(project, output)
+    manifest = validate_bundle(output)
+    assert {
+        Path(a["path"]).name
+        for a in manifest["artifacts"]
+        if a["path"].startswith("robot-cache/pip_cache/")
+    } == {f"{name}-1.0-py3-none-any.whl" for name in ("demo", "child", "leaf")}
+
+
 @pytest.mark.parametrize(
     "settings",
     [
@@ -404,17 +452,6 @@ def test_real_resolution_includes_creator_visible_distribution(
     links.mkdir()
 
     # demo -> built (sdist) -> leaf proves both closure and creation-time build.
-    def dependent_wheel(name, dependency):
-        with zipfile.ZipFile(io.BytesIO(wheel(name, "1.0"))) as original:
-            result = io.BytesIO()
-            with zipfile.ZipFile(result, "w") as archive:
-                for member in original.namelist():
-                    data = original.read(member)
-                    if member.endswith("/METADATA"):
-                        data += f"Requires-Dist: {dependency}==1.0\n".encode()
-                    archive.writestr(member, data)
-            return result.getvalue()
-
     (links / "demo-1.0-py3-none-any.whl").write_bytes(dependent_wheel("demo", "built"))
     (links / "leaf-1.0-py3-none-any.whl").write_bytes(wheel("leaf", "1.0"))
     from test_offline_run import make_wheel

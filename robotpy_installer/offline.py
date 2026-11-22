@@ -157,6 +157,7 @@ def create_bundle(
                 requirements=[],
                 packages=packages,
                 find_links=find_links,
+                force_deps=True,
             )
             direct = [str(req) for req in requirements if req.url is not None]
             if direct:

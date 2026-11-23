@@ -511,9 +511,14 @@ class RobotpyInstaller:
         requirements: typing.Sequence[pathlib.Path],
         packages: typing.Sequence[str],
         find_links: typing.Optional[pathlib.Path],
+        *,
+        force_deps: bool = False,
     ):
         """
         Specify Python package(s) to download, and store them in the cache.
+
+        With force_deps, ignore pip settings that disable dependency resolution
+        unless no_deps was explicitly requested.
 
         You must be connected to the internet for this to work.
         """
@@ -588,6 +593,9 @@ class RobotpyInstaller:
 
         env = os.environ.copy()
         env["ROBOTPY_PYTHON_VERSION"] = ".".join(map(str, self.python_runtime.version))
+        if force_deps and not no_deps:
+            # Override both pip spellings without discarding index settings.
+            env.update(PIP_NO_DEPS="0", PIP_NO_DEPENDENCIES="0")
         retval = subprocess.call(pip_args, env=env)
         if retval != 0:
             raise InstallerException("pip download failed")
